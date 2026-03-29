@@ -47,6 +47,14 @@ export class ChatApiError extends Error {
 
 const CHAT_URL = "/api/chat";
 const TIMEOUT_MS = 60_000;
+const TOKEN_KEY = "documind_token";
+
+function getAuthHeaders(): Record<string, string> {
+  const token = localStorage.getItem(TOKEN_KEY);
+  return token
+    ? { "Content-Type": "application/json", Authorization: `Bearer ${token}` }
+    : { "Content-Type": "application/json" };
+}
 
 export async function sendChatMessage(payload: ChatRequestPayload): Promise<ChatResult> {
   if (!payload.question.trim()) {
@@ -60,7 +68,7 @@ export async function sendChatMessage(payload: ChatRequestPayload): Promise<Chat
   try {
     response = await fetch(CHAT_URL, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: getAuthHeaders(),
       body: JSON.stringify(payload),
       signal: controller.signal,
     });
@@ -137,7 +145,7 @@ export async function clearChatSession(sessionId: string): Promise<void> {
   try {
     await fetch("/api/chat/clear-session", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: getAuthHeaders(),
       body: JSON.stringify({ sessionId }),
     });
   } catch {
