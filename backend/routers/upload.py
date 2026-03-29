@@ -2,12 +2,13 @@ import os
 import uuid
 import json
 from datetime import datetime
-from fastapi import APIRouter, UploadFile, File, HTTPException
+from fastapi import APIRouter, UploadFile, File, HTTPException, Depends
 from pydantic import BaseModel
 import aiofiles
 
 from services.pdf_processor import extract_text_chunks, get_page_count
 from services.embeddings import add_document_chunks
+from middleware.auth import get_current_user
 
 router = APIRouter()
 
@@ -41,7 +42,10 @@ class UploadResponse(BaseModel):
 
 
 @router.post("", response_model=UploadResponse)
-async def upload_document(file: UploadFile = File(...)):
+async def upload_document(
+    file: UploadFile = File(...),
+    current_user: dict = Depends(get_current_user),
+):
     if not file.filename.endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Yalnızca PDF dosyaları kabul edilmektedir.")
 
@@ -66,12 +70,13 @@ async def upload_document(file: UploadFile = File(...)):
     uploaded_at = datetime.utcnow().isoformat()
     doc_meta = {
         "id": doc_id,
+        "userId": str(current_user["id"]),
         "filename": file.filename,
         "uploadedAt": uploaded_at,
         "pageCount": page_count,
         "chunkCount": chunk_count,
         "fileSize": file_size,
-        "filePath": file_path
+        "filePath": file_path,
     }
 
     docs = load_documents()

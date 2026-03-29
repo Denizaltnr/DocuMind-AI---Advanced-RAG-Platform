@@ -2,11 +2,12 @@ import os
 import uuid
 import json
 from datetime import datetime
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from typing import List, Optional
 
 from services.rag_chain import chat_with_documents, clear_session
+from middleware.auth import get_current_user
 
 router = APIRouter()
 
@@ -78,17 +79,12 @@ class ClearSessionResponse(BaseModel):
 
 
 @router.post("", response_model=ChatResponse)
-def chat_endpoint(req: ChatRequest):
+def chat_endpoint(req: ChatRequest, current_user: dict = Depends(get_current_user)):
     if not req.question.strip():
         raise HTTPException(status_code=400, detail="Soru boş olamaz.")
 
-    if not os.environ.get("OPENAI_API_KEY"):
-        raise HTTPException(
-            status_code=500,
-            detail="OPENAI_API_KEY ortam değişkeni ayarlanmamış."
-        )
-
     session_id = req.sessionId or str(uuid.uuid4())
+    user_id = str(current_user["id"])
 
     try:
         result = chat_with_documents(
@@ -107,6 +103,7 @@ def chat_endpoint(req: ChatRequest):
 
     history_item = {
         "id": history_id,
+        "userId": user_id,
         "question": req.question,
         "answer": result["answer"],
         "documentId": req.documentId,
@@ -140,7 +137,7 @@ def chat_endpoint(req: ChatRequest):
 
 
 @router.post("/clear-session", response_model=ClearSessionResponse)
-def clear_session_endpoint(req: ClearSessionRequest):
+def clear_session_endpoint(req: ClearSessionRequest, current_user: dict = Depends(get_current_user)):
     clear_session(req.sessionId)
     return ClearSessionResponse(
         success=True,

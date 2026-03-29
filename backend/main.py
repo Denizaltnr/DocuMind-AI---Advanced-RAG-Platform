@@ -1,7 +1,7 @@
 import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from routers import upload, query, history, documents, chat
+from routers import upload, query, history, documents, chat, auth as auth_router
 
 GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY")
 if not GOOGLE_API_KEY:
@@ -27,6 +27,7 @@ app.add_middleware(
     max_age=600,
 )
 
+app.include_router(auth_router.router, prefix="/auth",     tags=["auth"])
 app.include_router(upload.router,    prefix="/upload",    tags=["upload"])
 app.include_router(documents.router, prefix="/documents", tags=["documents"])
 app.include_router(query.router,     prefix="/query",     tags=["query"])

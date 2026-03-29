@@ -1,10 +1,11 @@
 import os
 import json
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
-from typing import List
+from typing import List, Optional
 
 from services.embeddings import delete_document_chunks
+from middleware.auth import get_current_user
 
 router = APIRouter()
 
@@ -38,8 +39,10 @@ class DeleteResult(BaseModel):
 
 
 @router.get("", response_model=List[DocumentOut])
-def list_documents():
+def list_documents(current_user: dict = Depends(get_current_user)):
     docs = load_documents()
+    user_id = str(current_user["id"])
+    user_docs = [d for d in docs if d.get("userId") == user_id]
     return [
         DocumentOut(
             id=d["id"],
@@ -49,14 +52,15 @@ def list_documents():
             chunkCount=d["chunkCount"],
             fileSize=d["fileSize"]
         )
-        for d in docs
+        for d in user_docs
     ]
 
 
 @router.delete("/{doc_id}", response_model=DeleteResult)
-def delete_document(doc_id: str):
+def delete_document(doc_id: str, current_user: dict = Depends(get_current_user)):
     docs = load_documents()
-    doc = next((d for d in docs if d["id"] == doc_id), None)
+    user_id = str(current_user["id"])
+    doc = next((d for d in docs if d["id"] == doc_id and d.get("userId") == user_id), None)
 
     if not doc:
         raise HTTPException(status_code=404, detail="Belge bulunamadı.")

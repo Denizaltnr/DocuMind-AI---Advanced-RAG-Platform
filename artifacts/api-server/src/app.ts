@@ -73,6 +73,7 @@ function makePythonProxy(targetPathPrefix: string) {
 }
 
 app.use("/api/py", makePythonProxy(""));
+app.use("/api/auth", makePythonProxy("/auth"));
 app.use("/api/documents", makePythonProxy("/documents"));
 app.use("/api/query", makePythonProxy("/query"));
 app.use("/api/chat", makePythonProxy("/chat"));
