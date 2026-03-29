@@ -1,6 +1,7 @@
 import { useRef, useEffect, useCallback, useState } from "react";
 import type { SourceChunk } from "@workspace/api-client-react";
 import { MarkdownMessage } from "@/components/markdown-message";
+import { useLang } from "@/contexts/lang-context";
 import {
   Send,
   Loader2,
@@ -22,13 +23,6 @@ export type ChatMessage = {
   isError?: boolean;
 };
 
-const SUGGESTIONS = [
-  "Bu belgenin ana konusu nedir?",
-  "Önemli başlıkları listele",
-  "Sonuç bölümünü özetle",
-  "Hangi metodoloji kullanılmış?",
-];
-
 interface ChatPanelProps {
   messages: ChatMessage[];
   isSending: boolean;
@@ -46,6 +40,7 @@ export function ChatPanel({
   onQuestionChange,
   selectedDocLabel,
 }: ChatPanelProps) {
+  const { t, lang } = useLang();
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const [showScrollBtn, setShowScrollBtn] = useState(false);
@@ -79,13 +74,14 @@ export function ChatPanel({
   };
 
   const isEmpty = messages.length === 0;
+  const dateLocale = lang === "tr" ? "tr-TR" : "en-GB";
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
       {/* Panel label */}
       <div className="flex items-center gap-2 mb-4 shrink-0">
         <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-          Sohbet
+          {t.chat.sectionTitle}
         </h2>
         {selectedDocLabel && (
           <>
@@ -99,7 +95,7 @@ export function ChatPanel({
           <span className="ml-auto text-[11px] text-primary font-medium animate-pulse flex items-center gap-1">
             <span className="w-1 h-1 rounded-full bg-primary inline-block animate-bounce [animation-delay:0ms]" />
             <span className="w-1 h-1 rounded-full bg-primary/70 inline-block animate-bounce [animation-delay:160ms]" />
-            AI yazıyor...
+            {t.chat.aiTyping}
           </span>
         )}
       </div>
@@ -111,19 +107,18 @@ export function ChatPanel({
         className="flex-1 overflow-y-auto relative"
       >
         {isEmpty ? (
-          /* Empty state */
           <div className="flex flex-col items-center justify-center h-full py-16 text-center">
             <div className="w-12 h-12 rounded-2xl bg-accent border border-primary/20 flex items-center justify-center mb-5">
               <Sparkles className="w-5 h-5 text-primary" />
             </div>
             <h3 className="text-base font-semibold text-foreground mb-1.5">
-              Sormaya Hazır
+              {t.chat.readyTitle}
             </h3>
             <p className="text-sm text-muted-foreground max-w-xs font-normal leading-relaxed mb-7">
-              Yüklenen belge hakkında istediğiniz soruyu sorun.
+              {t.chat.readyDesc}
             </p>
             <div className="grid grid-cols-1 gap-1.5 w-full max-w-xs">
-              {SUGGESTIONS.map((s) => (
+              {t.chat.suggestions.map((s) => (
                 <button
                   key={s}
                   onClick={() => onSend(s)}
@@ -137,7 +132,6 @@ export function ChatPanel({
             </div>
           </div>
         ) : (
-          /* Message list — Notion style */
           <div className="space-y-1 pb-4">
             <AnimatePresence initial={false}>
               {messages.map((msg, idx) => (
@@ -147,12 +141,11 @@ export function ChatPanel({
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.18 }}
                 >
-                  {/* Date separator on first message */}
                   {idx === 0 && (
                     <div className="flex items-center gap-3 py-3 mb-1">
                       <div className="flex-1 h-px bg-border" />
                       <span className="text-[10px] text-muted-foreground font-normal uppercase tracking-widest">
-                        {new Date().toLocaleDateString("tr-TR", { day: "numeric", month: "long" })}
+                        {new Date().toLocaleDateString(dateLocale, { day: "numeric", month: "long" })}
                       </span>
                       <div className="flex-1 h-px bg-border" />
                     </div>
@@ -162,11 +155,12 @@ export function ChatPanel({
                     "flex gap-3 px-1 py-2 rounded-2xl transition-colors group",
                     "hover:bg-muted/50"
                   )}>
-                    {/* Icon / Avatar */}
                     <div className="shrink-0 mt-0.5">
                       {msg.role === "user" ? (
                         <div className="w-6 h-6 rounded-lg bg-primary flex items-center justify-center shadow-sm shadow-primary/20">
-                          <span className="text-[10px] font-semibold text-white leading-none">S</span>
+                          <span className="text-[10px] font-semibold text-white leading-none">
+                            {t.chat.you[0]}
+                          </span>
                         </div>
                       ) : msg.isError ? (
                         <div className="w-6 h-6 rounded-lg bg-red-100 border border-red-200 flex items-center justify-center">
@@ -179,22 +173,19 @@ export function ChatPanel({
                       )}
                     </div>
 
-                    {/* Content */}
                     <div className="flex-1 min-w-0">
-                      {/* Role label */}
                       <div className="flex items-baseline gap-2 mb-1">
                         <span className={cn(
                           "text-xs font-semibold",
                           msg.role === "user" ? "text-foreground" : msg.isError ? "text-red-600" : "text-primary"
                         )}>
-                          {msg.role === "user" ? "Siz" : msg.isError ? "Hata" : "DocuMind AI"}
+                          {msg.role === "user" ? t.chat.you : msg.isError ? t.chat.error : "DocuMind AI"}
                         </span>
                         <span className="text-[10px] text-muted-foreground font-normal">
-                          {new Date().toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" })}
+                          {new Date().toLocaleTimeString(dateLocale, { hour: "2-digit", minute: "2-digit" })}
                         </span>
                       </div>
 
-                      {/* Message body */}
                       {msg.role === "user" ? (
                         <p className="text-sm text-foreground font-normal leading-relaxed whitespace-pre-wrap break-words">
                           {msg.content}
@@ -203,7 +194,6 @@ export function ChatPanel({
                         <MarkdownMessage content={msg.content} isError={msg.isError} />
                       )}
 
-                      {/* Sources */}
                       {msg.sources && msg.sources.length > 0 && !msg.isError && (
                         <div className="mt-3">
                           <button
@@ -211,7 +201,7 @@ export function ChatPanel({
                             className="flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-foreground transition-colors font-normal"
                           >
                             <FileText className="w-3 h-3 text-primary/60" />
-                            <span>{msg.sources.length} kaynaktan yanıtlandı</span>
+                            <span>{t.chat.sources(msg.sources.length)}</span>
                             <ChevronDown className={cn(
                               "w-3 h-3 transition-transform duration-150",
                               sourcesOpen[msg.id] && "rotate-180"
@@ -240,7 +230,7 @@ export function ChatPanel({
                                             {src.filename}
                                           </span>
                                           <span className="text-[10px] bg-muted text-muted-foreground px-1.5 py-0.5 rounded-full shrink-0 font-normal">
-                                            Sayfa {src.page}
+                                            {t.chat.page} {src.page}
                                           </span>
                                         </div>
                                         <p className="text-[11px] text-muted-foreground leading-relaxed line-clamp-2 mt-0.5 font-normal">
@@ -260,7 +250,6 @@ export function ChatPanel({
                 </motion.div>
               ))}
 
-              {/* AI yazıyor — Skeleton loader */}
               {isSending && (
                 <motion.div
                   key="typing"
@@ -288,7 +277,6 @@ export function ChatPanel({
           </div>
         )}
 
-        {/* Scroll button */}
         <AnimatePresence>
           {showScrollBtn && (
             <motion.button
@@ -299,13 +287,13 @@ export function ChatPanel({
               className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-1.5 pl-3 pr-3.5 py-1.5 rounded-full bg-white border border-border shadow-md text-xs text-muted-foreground hover:text-foreground transition-all font-normal"
             >
               <ChevronDown className="w-3.5 h-3.5" />
-              Aşağı git
+              {t.chat.scrollDown}
             </motion.button>
           )}
         </AnimatePresence>
       </div>
 
-      {/* ── Input ────────────────────────────────────────── */}
+      {/* Input */}
       <div className="shrink-0 pt-3">
         <div className={cn(
           "flex items-end gap-2 bg-white border rounded-2xl px-4 py-3 shadow-sm",
@@ -318,7 +306,7 @@ export function ChatPanel({
             value={question}
             onChange={autoResize}
             onKeyDown={handleKeyDown}
-            placeholder={isSending ? "AI yanıt oluşturuyor..." : "Bir şey sorun… (Shift+Enter yeni satır)"}
+            placeholder={isSending ? t.chat.inputPlaceholderWaiting : t.chat.inputPlaceholder}
             rows={1}
             disabled={isSending}
             className="flex-1 bg-transparent outline-none resize-none text-sm text-foreground placeholder:text-muted-foreground max-h-36 leading-relaxed disabled:cursor-wait font-normal"
@@ -327,7 +315,7 @@ export function ChatPanel({
           <button
             onClick={() => onSend()}
             disabled={!question.trim() || isSending}
-            aria-label="Gönder"
+            aria-label={t.chat.sendLabel}
             className={cn(
               "shrink-0 w-8 h-8 rounded-2xl bg-primary text-white flex items-center justify-center",
               "transition-all duration-200 ease-out",
@@ -343,7 +331,7 @@ export function ChatPanel({
           </button>
         </div>
         <p className="text-[10px] text-muted-foreground mt-1.5 text-center font-normal">
-          DocuMind AI yalnızca yüklenen belgeler üzerinden yanıt verir
+          {t.chat.disclaimer}
         </p>
       </div>
     </div>

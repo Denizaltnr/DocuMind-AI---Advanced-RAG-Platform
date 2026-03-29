@@ -3,6 +3,7 @@ import { useLocation } from "wouter";
 import { Eye, EyeOff, Mail, Lock, User, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/auth-context";
+import { useLang } from "@/contexts/lang-context";
 
 function getBaseUrl() {
   return import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
@@ -21,17 +22,14 @@ function openGooglePopup(
     "google-oauth",
     `width=${w},height=${h},left=${left},top=${top},toolbar=no,menubar=no`,
   );
-  if (!popup) {
-    onError("Popup penceresi açılamadı. Tarayıcı popup engelleyicisini kapatın.");
-    return;
-  }
+  if (!popup) { onError("popup_blocked"); return; }
   const onMessage = (event: MessageEvent) => {
     if (event.data?.type === "google-auth-success") {
       cleanup();
       onSuccess(event.data.token, event.data.user);
     } else if (event.data?.type === "google-auth-error") {
       cleanup();
-      onError(event.data.error ?? "Google girişi başarısız.");
+      onError(event.data.error ?? "google_failed");
     }
   };
   const timer = setInterval(() => {
@@ -47,9 +45,9 @@ function openGooglePopup(
 export default function AuthPage() {
   const [, navigate] = useLocation();
   const { login } = useAuth();
+  const { t } = useLang();
 
   const [tab, setTab] = useState<"login" | "register">("login");
-
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
@@ -57,11 +55,10 @@ export default function AuthPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
 
   const resetForm = () => {
     setEmail(""); setPassword(""); setFullName("");
-    setError(null); setSuccess(null); setShowPass(false);
+    setError(null); setShowPass(false);
   };
 
   const switchTab = (t: "login" | "register") => {
@@ -80,7 +77,7 @@ export default function AuthPage() {
         body: JSON.stringify({ email, password }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.detail ?? "Giriş başarısız.");
+      if (!res.ok) throw new Error(data.detail ?? t.auth.loginFailed);
       login(data.access_token, data.user);
       navigate("/");
     } catch (err: any) {
@@ -92,7 +89,7 @@ export default function AuthPage() {
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (password.length < 6) { setError("Şifre en az 6 karakter olmalıdır."); return; }
+    if (password.length < 6) { setError(t.auth.passwordTooShort); return; }
     setError(null);
     setIsLoading(true);
     try {
@@ -102,7 +99,7 @@ export default function AuthPage() {
         body: JSON.stringify({ email, password, full_name: fullName || undefined }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.detail ?? "Kayıt başarısız.");
+      if (!res.ok) throw new Error(data.detail ?? t.auth.registerFailed);
       login(data.access_token, data.user);
       navigate("/");
     } catch (err: any) {
@@ -117,7 +114,10 @@ export default function AuthPage() {
     setError(null);
     openGooglePopup(
       (token, user) => { setGoogleLoading(false); login(token, user); navigate("/"); },
-      (msg) => { setGoogleLoading(false); setError(msg); },
+      (msg) => {
+        setGoogleLoading(false);
+        setError(msg === "popup_blocked" ? t.auth.popupBlocked : t.auth.googleFailed);
+      },
       () => setGoogleLoading(false),
     );
   };
@@ -145,7 +145,7 @@ export default function AuthPage() {
             DocuMind<span className="text-primary"> AI</span>
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            {tab === "login" ? "Hesabınıza giriş yapın" : "Ücretsiz hesap oluşturun"}
+            {tab === "login" ? t.auth.loginSubtitle : t.auth.registerSubtitle}
           </p>
         </div>
 
@@ -164,7 +164,7 @@ export default function AuthPage() {
                   : "text-muted-foreground hover:text-foreground hover:bg-muted/50",
               )}
             >
-              Giriş Yap
+              {t.auth.loginTab}
             </button>
             <button
               type="button"
@@ -176,7 +176,7 @@ export default function AuthPage() {
                   : "text-muted-foreground hover:text-foreground hover:bg-muted/50",
               )}
             >
-              Kayıt Ol
+              {t.auth.registerTab}
             </button>
           </div>
 
@@ -194,24 +194,18 @@ export default function AuthPage() {
               )}
             >
               {googleLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <GoogleIcon />}
-              {tab === "login" ? "Google ile Giriş Yap" : "Google ile Kayıt Ol"}
+              {tab === "login" ? t.auth.googleLogin : t.auth.googleRegister}
             </button>
 
             <div className="flex items-center gap-3 my-5">
               <div className="flex-1 h-px bg-border" />
-              <span className="text-xs text-muted-foreground">veya</span>
+              <span className="text-xs text-muted-foreground">{t.auth.or}</span>
               <div className="flex-1 h-px bg-border" />
             </div>
 
-            {/* Error / Success */}
             {error && (
               <div className="mb-4 bg-destructive/5 border border-destructive/20 text-destructive text-xs px-3 py-2.5 rounded-2xl">
                 {error}
-              </div>
-            )}
-            {success && (
-              <div className="mb-4 bg-green-50 border border-green-200 text-green-700 text-xs px-3 py-2.5 rounded-2xl">
-                {success}
               </div>
             )}
 
@@ -219,25 +213,25 @@ export default function AuthPage() {
             {tab === "login" && (
               <form onSubmit={handleLogin} className="space-y-4">
                 <div>
-                  <label className="text-xs font-medium text-foreground block mb-1.5">E-posta</label>
+                  <label className="text-xs font-medium text-foreground block mb-1.5">{t.auth.emailLabel}</label>
                   <div className="relative">
                     <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                     <input
                       type="email" required autoComplete="email"
                       value={email} onChange={e => setEmail(e.target.value)}
-                      placeholder="ornek@email.com"
+                      placeholder={t.auth.emailPlaceholder}
                       className={cn(inputClass, "pl-9 pr-4")}
                     />
                   </div>
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-foreground block mb-1.5">Şifre</label>
+                  <label className="text-xs font-medium text-foreground block mb-1.5">{t.auth.passwordLabel}</label>
                   <div className="relative">
                     <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                     <input
                       type={showPass ? "text" : "password"} required autoComplete="current-password"
                       value={password} onChange={e => setPassword(e.target.value)}
-                      placeholder="••••••••"
+                      placeholder={t.auth.passwordPlaceholder}
                       className={cn(inputClass, "pl-9 pr-10")}
                     />
                     <button type="button" onClick={() => setShowPass(v => !v)}
@@ -255,7 +249,7 @@ export default function AuthPage() {
                     "disabled:opacity-60 disabled:cursor-not-allowed disabled:transform-none",
                   )}>
                   {isLoading && <Loader2 className="w-4 h-4 animate-spin" />}
-                  Giriş Yap
+                  {t.auth.loginButton}
                 </button>
               </form>
             )}
@@ -265,38 +259,38 @@ export default function AuthPage() {
               <form onSubmit={handleRegister} className="space-y-4">
                 <div>
                   <label className="text-xs font-medium text-foreground block mb-1.5">
-                    Ad Soyad <span className="text-muted-foreground font-normal">(isteğe bağlı)</span>
+                    {t.auth.nameLabel} <span className="text-muted-foreground font-normal">{t.auth.nameOptional}</span>
                   </label>
                   <div className="relative">
                     <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                     <input
                       type="text" autoComplete="name"
                       value={fullName} onChange={e => setFullName(e.target.value)}
-                      placeholder="Adınız Soyadınız"
+                      placeholder={t.auth.namePlaceholder}
                       className={cn(inputClass, "pl-9 pr-4")}
                     />
                   </div>
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-foreground block mb-1.5">E-posta</label>
+                  <label className="text-xs font-medium text-foreground block mb-1.5">{t.auth.emailLabel}</label>
                   <div className="relative">
                     <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                     <input
                       type="email" required autoComplete="email"
                       value={email} onChange={e => setEmail(e.target.value)}
-                      placeholder="ornek@email.com"
+                      placeholder={t.auth.emailPlaceholder}
                       className={cn(inputClass, "pl-9 pr-4")}
                     />
                   </div>
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-foreground block mb-1.5">Şifre</label>
+                  <label className="text-xs font-medium text-foreground block mb-1.5">{t.auth.passwordLabel}</label>
                   <div className="relative">
                     <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                     <input
                       type={showPass ? "text" : "password"} required minLength={6} autoComplete="new-password"
                       value={password} onChange={e => setPassword(e.target.value)}
-                      placeholder="En az 6 karakter"
+                      placeholder={t.auth.passwordNewPlaceholder}
                       className={cn(inputClass, "pl-9 pr-10")}
                     />
                     <button type="button" onClick={() => setShowPass(v => !v)}
@@ -314,10 +308,10 @@ export default function AuthPage() {
                     "disabled:opacity-60 disabled:cursor-not-allowed disabled:transform-none",
                   )}>
                   {isLoading && <Loader2 className="w-4 h-4 animate-spin" />}
-                  Kayıt Ol
+                  {t.auth.registerButton}
                 </button>
                 <p className="text-center text-xs text-muted-foreground">
-                  Kayıt olarak <span className="text-foreground">Kullanım Koşulları</span>'nı kabul etmiş olursunuz.
+                  {t.auth.termsNote}
                 </p>
               </form>
             )}

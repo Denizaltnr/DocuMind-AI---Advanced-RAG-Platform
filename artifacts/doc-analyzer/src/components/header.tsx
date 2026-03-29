@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect } from "react";
-import { Upload, LogOut, ChevronDown, PanelLeft } from "lucide-react";
+import { Upload, LogOut, ChevronDown, PanelLeft, Globe } from "lucide-react";
 import { UploadModal } from "@/components/upload-modal";
 import { useAuth } from "@/contexts/auth-context";
+import { useLang } from "@/contexts/lang-context";
 import { cn } from "@/lib/utils";
 
 interface HeaderProps {
@@ -14,8 +15,8 @@ export function Header({ sidebarOpen, onToggleSidebar }: HeaderProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const { user, logout } = useAuth();
+  const { t, lang, toggleLang } = useLang();
 
-  // Close menu when clicking outside
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
@@ -37,7 +38,7 @@ export function Header({ sidebarOpen, onToggleSidebar }: HeaderProps) {
         {/* Sidebar toggle */}
         <button
           onClick={onToggleSidebar}
-          title={sidebarOpen ? "Paneli gizle" : "Paneli göster"}
+          title={sidebarOpen ? t.header.hideSidebar : t.header.showSidebar}
           className={cn(
             "mr-3 w-8 h-8 flex items-center justify-center rounded-xl transition-all duration-200",
             "text-muted-foreground hover:text-foreground hover:bg-muted",
@@ -67,7 +68,22 @@ export function Header({ sidebarOpen, onToggleSidebar }: HeaderProps) {
         </div>
 
         {/* Right controls */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
+
+          {/* Language switcher */}
+          <button
+            onClick={toggleLang}
+            title={t.lang.switchTo}
+            className={cn(
+              "flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-medium transition-all duration-200",
+              "text-muted-foreground hover:text-foreground hover:bg-muted border border-transparent hover:border-border",
+            )}
+          >
+            <Globe className="w-3.5 h-3.5" />
+            {lang === "tr" ? "EN" : "TR"}
+          </button>
+
+          {/* Upload button */}
           <button
             onClick={() => setModalOpen(true)}
             className={cn(
@@ -79,7 +95,7 @@ export function Header({ sidebarOpen, onToggleSidebar }: HeaderProps) {
             )}
           >
             <Upload className="w-3.5 h-3.5" />
-            Belge Yükle
+            {t.header.uploadButton}
           </button>
 
           {/* User avatar + dropdown */}
@@ -114,7 +130,7 @@ export function Header({ sidebarOpen, onToggleSidebar }: HeaderProps) {
               <div className="absolute right-0 top-full mt-2 w-56 bg-white border border-border rounded-2xl shadow-lg shadow-black/5 p-1.5 z-50">
                 <div className="px-3 py-2 mb-1">
                   <p className="text-sm font-medium text-foreground truncate">
-                    {user?.full_name ?? "Kullanıcı"}
+                    {user?.full_name ?? t.header.unknownUser}
                   </p>
                   <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
                 </div>
@@ -124,7 +140,7 @@ export function Header({ sidebarOpen, onToggleSidebar }: HeaderProps) {
                   className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm text-muted-foreground hover:text-destructive hover:bg-destructive/5 transition-colors"
                 >
                   <LogOut className="w-3.5 h-3.5" />
-                  Çıkış Yap
+                  {t.header.logout}
                 </button>
               </div>
             )}

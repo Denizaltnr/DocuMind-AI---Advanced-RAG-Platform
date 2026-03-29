@@ -7,6 +7,7 @@ import { DocPanel } from "@/components/doc-panel";
 import { ChatPanel, type ChatMessage } from "@/components/chat-panel";
 import { RotateCcw, WifiOff, ServerCrash, AlertTriangle, Clock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useLang } from "@/contexts/lang-context";
 import { motion, AnimatePresence } from "framer-motion";
 
 const SIDEBAR_EXPANDED_W = 256;
@@ -21,6 +22,7 @@ export default function Home() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
   const { toast } = useToast();
+  const { t } = useLang();
   const { data: historyData } = useGetHistory();
   const { mutate: clearSessionMutation } = useClearChatSession();
   const { data: documents } = useListDocuments();
@@ -28,7 +30,7 @@ export default function Home() {
   /* ── Selected doc label ─────────────────────────────── */
   const selectedDocLabel =
     selectedDocId === "all"
-      ? "Tüm Belgeler"
+      ? t.home.allDocs
       : (documents?.find(d => d.id === selectedDocId)?.filename ?? "");
 
   /* ── Session helpers ─────────────────────────────────── */
@@ -46,15 +48,8 @@ export default function Home() {
 
   /* ── Error toast ─────────────────────────────────────── */
   const showErrorToast = (err: ChatApiError) => {
-    const map: Record<string, { title: string }> = {
-      network:    { title: "Bağlantı Hatası"    },
-      timeout:    { title: "Zaman Aşımı"        },
-      server:     { title: "Sunucu Hatası"      },
-      validation: { title: "Geçersiz İstek"     },
-      not_found:  { title: "Endpoint Bulunamadı"},
-      unknown:    { title: "Bilinmeyen Hata"    },
-    };
-    const { title } = map[err.type] ?? map.unknown;
+    const errors = t.home.errors as Record<string, string>;
+    const title = errors[err.type] ?? errors.unknown;
     toast({ variant: "destructive", title, description: err.message, duration: 6000 });
   };
 
@@ -137,7 +132,7 @@ export default function Home() {
                       className="flex items-center gap-2 w-full px-3 py-2 mb-4 rounded-2xl border border-border bg-white text-xs text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-40 transition-all font-normal"
                     >
                       <RotateCcw className="w-3.5 h-3.5 shrink-0" />
-                      Yeni Sohbet Başlat
+                      {t.home.newChat}
                     </button>
                   </motion.div>
                 )}

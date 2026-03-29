@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
+import { useLang } from "@/contexts/lang-context";
 
 interface DocPanelProps {
   selectedDocId: string | "all";
@@ -21,6 +22,8 @@ export function DocPanel({ selectedDocId, onDocSelect, collapsed }: DocPanelProp
   const { data: documents, isLoading } = useListDocuments();
   const { mutate: deleteDoc } = useDeleteDocument();
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const { t, lang } = useLang();
+  const dateLocale = lang === "tr" ? "tr-TR" : "en-GB";
 
   const handleDelete = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -45,7 +48,7 @@ export function DocPanel({ selectedDocId, onDocSelect, collapsed }: DocPanelProp
         {/* "All docs" icon */}
         <button
           onClick={() => onDocSelect("all")}
-          title="Tüm Belgeler"
+          title={t.docs.allDocs}
           className={cn(
             "w-9 h-9 rounded-xl flex items-center justify-center transition-all shrink-0",
             selectedDocId === "all"
@@ -105,7 +108,7 @@ export function DocPanel({ selectedDocId, onDocSelect, collapsed }: DocPanelProp
       {/* Section header */}
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-          Belgeler
+          {t.docs.sectionTitle}
         </h2>
         {docCount > 0 && (
           <span className="text-[10px] bg-muted text-muted-foreground px-2 py-0.5 rounded-full font-normal">
@@ -130,7 +133,7 @@ export function DocPanel({ selectedDocId, onDocSelect, collapsed }: DocPanelProp
         )}>
           <FileText className={cn("w-3.5 h-3.5", selectedDocId === "all" ? "text-primary" : "text-muted-foreground")} />
         </div>
-        <span className="text-xs truncate">Tüm Belgeler</span>
+        <span className="text-xs truncate">{t.docs.allDocs}</span>
         {selectedDocId === "all" && (
           <CheckCircle2 className="w-3.5 h-3.5 text-primary ml-auto shrink-0" />
         )}
@@ -213,9 +216,9 @@ export function DocPanel({ selectedDocId, onDocSelect, collapsed }: DocPanelProp
                     {nameWithoutExt}
                   </p>
                   <p className="text-[10px] text-muted-foreground mt-0.5 font-normal">
-                    {doc.pageCount != null ? `${doc.pageCount} sayfa` : "PDF"}
+                    {doc.pageCount != null ? t.docs.pages(doc.pageCount) : "PDF"}
                     {doc.uploadedAt && (
-                      <> · {new Date(doc.uploadedAt).toLocaleDateString("tr-TR", { day: "numeric", month: "short" })}</>
+                      <> · {new Date(doc.uploadedAt).toLocaleDateString(dateLocale, { day: "numeric", month: "short" })}</>
                     )}
                   </p>
                 </div>
@@ -230,9 +233,9 @@ export function DocPanel({ selectedDocId, onDocSelect, collapsed }: DocPanelProp
               <Plus className="w-5 h-5 text-muted-foreground" />
             </div>
             <div>
-              <p className="text-xs font-medium text-foreground">Belge yok</p>
+              <p className="text-xs font-medium text-foreground">{t.docs.noDocsTitle}</p>
               <p className="text-[11px] text-muted-foreground mt-0.5 font-normal">
-                Yukarıdan PDF yükleyin
+                {t.docs.noDocsHint}
               </p>
             </div>
           </div>

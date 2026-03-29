@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X, FileText, Upload, CheckCircle2, AlertCircle } from "lucide-react";
 import { useUploadDocument } from "@/hooks/use-upload";
 import { useToast } from "@/hooks/use-toast";
+import { useLang } from "@/contexts/lang-context";
 import { cn } from "@/lib/utils";
 
 interface UploadModalProps {
@@ -21,6 +22,7 @@ export function UploadModal({ open, onClose }: UploadModalProps) {
   const [fileName, setFileName] = useState<string | null>(null);
   const { mutate: uploadDoc } = useUploadDocument();
   const { toast } = useToast();
+  const { t } = useLang();
 
   const reset = useCallback(() => {
     setDropState("idle");
@@ -37,12 +39,12 @@ export function UploadModal({ open, onClose }: UploadModalProps) {
     (file: File) => {
       if (file.type !== "application/pdf") {
         setDropState("error");
-        setFileName("Yalnızca PDF dosyaları desteklenir.");
+        setFileName(t.upload.onlyPdf);
         return;
       }
       if (file.size > MAX_BYTES) {
         setDropState("error");
-        setFileName(`Dosya çok büyük (maks. ${MAX_MB} MB).`);
+        setFileName(t.upload.tooLarge(MAX_MB));
         return;
       }
 
@@ -52,7 +54,7 @@ export function UploadModal({ open, onClose }: UploadModalProps) {
       uploadDoc(file, {
         onSuccess: () => {
           setDropState("success");
-          toast({ title: "Belge yüklendi", description: file.name });
+          toast({ title: t.upload.toastTitle, description: file.name });
           setTimeout(() => {
             reset();
             onClose();
@@ -60,14 +62,13 @@ export function UploadModal({ open, onClose }: UploadModalProps) {
         },
         onError: () => {
           setDropState("error");
-          setFileName("Yükleme başarısız, tekrar deneyin.");
+          setFileName(t.upload.uploadFailed);
         },
       });
     },
-    [uploadDoc, toast, reset, onClose]
+    [uploadDoc, toast, reset, onClose, t]
   );
 
-  /* ── Drag events ─────────────────────────────────────────── */
   const onDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     if (dropState !== "uploading") setDropState("over");
@@ -88,22 +89,16 @@ export function UploadModal({ open, onClose }: UploadModalProps) {
     e.target.value = "";
   };
 
-  /* ── Zone appearance by state ───────────────────────────── */
   const zoneClass = cn(
     "relative flex flex-col items-center justify-center gap-5 w-full",
     "border-2 border-dashed rounded-3xl p-12 cursor-pointer",
     "transition-all duration-200",
     {
-      "border-border bg-background hover:border-primary/40 hover:bg-accent/60":
-        dropState === "idle",
-      "border-primary bg-accent scale-[1.01]":
-        dropState === "over",
-      "border-primary/40 bg-accent/40 cursor-default pointer-events-none":
-        dropState === "uploading",
-      "border-green-400 bg-green-50 cursor-default pointer-events-none":
-        dropState === "success",
-      "border-red-300 bg-red-50 cursor-default":
-        dropState === "error",
+      "border-border bg-background hover:border-primary/40 hover:bg-accent/60": dropState === "idle",
+      "border-primary bg-accent scale-[1.01]": dropState === "over",
+      "border-primary/40 bg-accent/40 cursor-default pointer-events-none": dropState === "uploading",
+      "border-green-400 bg-green-50 cursor-default pointer-events-none": dropState === "success",
+      "border-red-300 bg-red-50 cursor-default": dropState === "error",
     }
   );
 
@@ -111,7 +106,6 @@ export function UploadModal({ open, onClose }: UploadModalProps) {
     <AnimatePresence>
       {open && (
         <>
-          {/* Backdrop */}
           <motion.div
             key="backdrop"
             initial={{ opacity: 0 }}
@@ -122,7 +116,6 @@ export function UploadModal({ open, onClose }: UploadModalProps) {
             onClick={handleClose}
           />
 
-          {/* Modal */}
           <motion.div
             key="modal"
             initial={{ opacity: 0, scale: 0.94, y: 16 }}
@@ -139,10 +132,10 @@ export function UploadModal({ open, onClose }: UploadModalProps) {
               <div className="flex items-center justify-between px-6 pt-6 pb-5">
                 <div>
                   <h2 className="text-base font-semibold text-foreground">
-                    Belge Yükle
+                    {t.upload.title}
                   </h2>
                   <p className="text-xs text-muted-foreground mt-0.5 font-normal">
-                    PDF formatında bir belge seçin veya sürükleyin
+                    {t.upload.subtitle}
                   </p>
                 </div>
                 <button
@@ -169,12 +162,8 @@ export function UploadModal({ open, onClose }: UploadModalProps) {
                   onDragOver={onDragOver}
                   onDragLeave={onDragLeave}
                   onDrop={onDrop}
-                  onClick={() => dropState === "idle" || dropState === "error"
-                    ? fileRef.current?.click()
-                    : undefined
-                  }
+                  onClick={() => (dropState === "idle" || dropState === "error") ? fileRef.current?.click() : undefined}
                 >
-                  {/* Idle / drag-over */}
                   {(dropState === "idle" || dropState === "over") && (
                     <>
                       <div className={cn(
@@ -190,13 +179,10 @@ export function UploadModal({ open, onClose }: UploadModalProps) {
                           "text-sm font-medium transition-colors",
                           dropState === "over" ? "text-primary" : "text-foreground"
                         )}>
-                          {dropState === "over"
-                            ? "Bırakın, yüklemeye başlayalım"
-                            : "Dosyayı buraya sürükle veya seç"
-                          }
+                          {dropState === "over" ? t.upload.dropOver : t.upload.dropIdle}
                         </p>
                         <p className="text-xs text-muted-foreground font-normal">
-                          Maksimum {MAX_MB} MB · Yalnızca PDF
+                          {t.upload.maxSize(MAX_MB)}
                         </p>
                       </div>
                       {dropState === "idle" && (
@@ -205,20 +191,19 @@ export function UploadModal({ open, onClose }: UploadModalProps) {
                           className="px-5 py-2.5 rounded-2xl bg-primary text-white text-sm font-medium transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-primary/25 active:translate-y-0 flex items-center gap-2"
                         >
                           <Upload className="w-3.5 h-3.5" />
-                          Dosya Seç
+                          {t.upload.selectFile}
                         </button>
                       )}
                     </>
                   )}
 
-                  {/* Uploading */}
                   {dropState === "uploading" && (
                     <>
                       <div className="w-16 h-16 rounded-3xl bg-primary/10 flex items-center justify-center">
                         <div className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
                       </div>
                       <div className="text-center space-y-1.5 w-full max-w-xs">
-                        <p className="text-sm font-medium text-foreground">İşleniyor…</p>
+                        <p className="text-sm font-medium text-foreground">{t.upload.processing}</p>
                         <p className="text-xs text-muted-foreground font-normal truncate">{fileName}</p>
                         <div className="mt-3 w-full h-1.5 bg-muted rounded-full overflow-hidden">
                           <motion.div
@@ -232,7 +217,6 @@ export function UploadModal({ open, onClose }: UploadModalProps) {
                     </>
                   )}
 
-                  {/* Success */}
                   {dropState === "success" && (
                     <>
                       <motion.div
@@ -244,13 +228,12 @@ export function UploadModal({ open, onClose }: UploadModalProps) {
                         <CheckCircle2 className="w-8 h-8 text-green-500" />
                       </motion.div>
                       <div className="text-center">
-                        <p className="text-sm font-medium text-green-700">Yüklendi!</p>
+                        <p className="text-sm font-medium text-green-700">{t.upload.uploaded}</p>
                         <p className="text-xs text-green-600/80 font-normal mt-0.5">{fileName}</p>
                       </div>
                     </>
                   )}
 
-                  {/* Error */}
                   {dropState === "error" && (
                     <>
                       <div className="w-16 h-16 rounded-3xl bg-red-100 flex items-center justify-center">
@@ -262,17 +245,16 @@ export function UploadModal({ open, onClose }: UploadModalProps) {
                           onClick={(e) => { e.stopPropagation(); reset(); }}
                           className="text-xs text-primary underline underline-offset-2 font-normal hover:text-primary/80"
                         >
-                          Tekrar dene
+                          {t.upload.retry}
                         </button>
                       </div>
                     </>
                   )}
                 </div>
 
-                {/* Footer note */}
                 {(dropState === "idle" || dropState === "over") && (
                   <p className="text-center text-[11px] text-muted-foreground mt-4 font-normal">
-                    Belge yüklendikten sonra AI tarafından analiz edilecek ve sorgulanabilir hale gelecektir.
+                    {t.upload.footerNote}
                   </p>
                 )}
               </div>

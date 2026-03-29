@@ -3,6 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Router as WouterRouter, Switch, Route, Redirect } from "wouter";
 import { AuthProvider, useAuth } from "@/contexts/auth-context";
+import { LangProvider } from "@/contexts/lang-context";
 import Home from "@/pages/home";
 import Login from "@/pages/login";
 
@@ -23,7 +24,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-3">
           <div className="w-8 h-8 rounded-xl bg-primary animate-pulse" />
-          <p className="text-sm text-muted-foreground">Yükleniyor...</p>
+          <p className="text-sm text-muted-foreground">Loading…</p>
         </div>
       </div>
     );
@@ -78,11 +79,13 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider delayDuration={300}>
-        <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-          <AuthProvider>
-            <AppRoutes />
-          </AuthProvider>
-        </WouterRouter>
+        <LangProvider>
+          <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+            <AuthProvider>
+              <AppRoutes />
+            </AuthProvider>
+          </WouterRouter>
+        </LangProvider>
         <Toaster />
       </TooltipProvider>
     </QueryClientProvider>
