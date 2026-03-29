@@ -124,6 +124,25 @@ def upsert_google_user(google_id: str, email: str,
             return dict(row)
 
 
+# ── Google ID Token verification (GSI popup flow) ─────────────────────
+async def verify_google_id_token(credential: str) -> dict:
+    """Verify a Google ID token from the GSI popup flow."""
+    import httpx
+    async with httpx.AsyncClient() as client:
+        resp = await client.get(
+            "https://oauth2.googleapis.com/tokeninfo",
+            params={"id_token": credential},
+        )
+        if resp.status_code != 200:
+            raise ValueError("Geçersiz Google token.")
+        info = resp.json()
+        if info.get("aud") != GOOGLE_CLIENT_ID:
+            raise ValueError("Token bu uygulama için geçerli değil.")
+        if not info.get("email_verified"):
+            raise ValueError("Google e-postası doğrulanmamış.")
+        return info
+
+
 # ── Google OAuth helpers ──────────────────────────────────────────────
 def get_google_auth_url(state: str) -> str:
     client = AsyncOAuth2Client(

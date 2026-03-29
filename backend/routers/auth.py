@@ -13,6 +13,7 @@ from services.auth_service import (
     get_google_auth_url,
     exchange_google_code,
     upsert_google_user,
+    verify_google_id_token,
 )
 from middleware.auth import get_current_user
 
@@ -93,7 +94,37 @@ def me(current_user: dict = Depends(get_current_user)):
     }
 
 
-# ── Google OAuth ─────────────────────────────────────────────────────
+# ── Google Identity Services (popup / ID token flow) ─────────────────
+class GoogleTokenRequest(BaseModel):
+    credential: str
+
+
+@router.post("/google/token", response_model=AuthResponse)
+async def google_token_login(req: GoogleTokenRequest):
+    try:
+        info = await verify_google_id_token(req.credential)
+    except ValueError as e:
+        raise HTTPException(status_code=401, detail=str(e))
+
+    google_id = info.get("sub")
+    email = info.get("email")
+    full_name = info.get("name")
+    avatar_url = info.get("picture")
+
+    if not email or not google_id:
+        raise HTTPException(status_code=400, detail="Google hesabından bilgi alınamadı.")
+
+    user = upsert_google_user(google_id=google_id, email=email,
+                              full_name=full_name, avatar_url=avatar_url)
+    token = create_access_token(str(user["id"]), user["email"])
+    return AuthResponse(
+        access_token=token,
+        user={"id": str(user["id"]), "email": user["email"],
+              "full_name": user["full_name"], "avatar_url": user["avatar_url"]}
+    )
+
+
+# ── Google OAuth (redirect flow — kept for reference) ─────────────────
 @router.get("/google")
 def google_login():
     state = secrets.token_urlsafe(16)

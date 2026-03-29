@@ -1,8 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { Eye, EyeOff, Mail, Lock, User, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/auth-context";
+
+const GOOGLE_CLIENT_ID = "630913058373-bskba9v5t7469gh9fpcjuvnda31108p3.apps.googleusercontent.com";
 
 function getBaseUrl() {
   return import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
@@ -17,7 +19,46 @@ export default function Signup() {
   const [password, setPassword] = useState("");
   const [showPass, setShowPass] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const initGoogle = () => {
+      if (!window.google) return;
+      window.google.accounts.id.initialize({
+        client_id: GOOGLE_CLIENT_ID,
+        callback: handleGoogleCredential,
+        auto_select: false,
+        cancel_on_tap_outside: true,
+      });
+    };
+    if (window.google) {
+      initGoogle();
+    } else {
+      const script = document.querySelector('script[src*="accounts.google.com/gsi"]');
+      if (script) script.addEventListener("load", initGoogle);
+    }
+  }, []);
+
+  const handleGoogleCredential = async (response: { credential: string }) => {
+    setGoogleLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`${getBaseUrl()}/api/auth/google/token`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ credential: response.credential }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail ?? "Google girişi başarısız.");
+      login(data.access_token, data.user);
+      navigate("/");
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,7 +86,15 @@ export default function Signup() {
   };
 
   const handleGoogle = () => {
-    window.location.href = `${getBaseUrl()}/api/auth/google`;
+    if (!window.google) {
+      setError("Google Sign-In yüklenemedi. Sayfayı yenileyip tekrar dene.");
+      return;
+    }
+    window.google.accounts.id.prompt((notification: any) => {
+      if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+        window.google.accounts.id.prompt();
+      }
+    });
   };
 
   return (
@@ -74,14 +123,15 @@ export default function Signup() {
           <button
             type="button"
             onClick={handleGoogle}
+            disabled={googleLoading}
             className={cn(
               "w-full flex items-center justify-center gap-3 px-4 py-2.5 rounded-2xl",
               "border border-border text-sm font-medium text-foreground",
               "hover:bg-muted transition-all duration-200 hover:-translate-y-0.5 hover:shadow-sm",
-              "active:translate-y-0"
+              "active:translate-y-0 disabled:opacity-60 disabled:cursor-not-allowed"
             )}
           >
-            <GoogleIcon />
+            {googleLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <GoogleIcon />}
             Google ile Kayıt Ol
           </button>
 
