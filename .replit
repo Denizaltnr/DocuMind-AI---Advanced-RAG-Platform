@@ -52,4 +52,3 @@ channel = "stable-25_05"
 [userenv]
 
 [userenv.shared]
-GOOGLE_REDIRECT_URI = "https://f2b2b96a-d3e5-4836-b0a3-52f0b181c2c2-00-2rz41mvx5dtk9.worf.replit.dev/api/auth/google/callback"
