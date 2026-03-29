@@ -11,40 +11,51 @@ logger = logging.getLogger(__name__)
 
 GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY")
 
-# Priority 1: User-provided OpenAI API key (standard OpenAI)
-_OPENAI_API_KEY  = os.environ.get("OPENAI_API_KEY2", "") or os.environ.get("OPENAI_API_KEY", "")
-_OPENAI_BASE_URL = "https://api.openai.com/v1"
+# OpenAI credentials — tried in priority order by _call_openai()
+# Priority 1: Replit AI integrations (free, always available in Replit)
+_REPLIT_OPENAI_KEY  = os.environ.get("AI_INTEGRATIONS_OPENAI_API_KEY", "")
+_REPLIT_OPENAI_URL  = os.environ.get("AI_INTEGRATIONS_OPENAI_BASE_URL", "").rstrip("/")
 
-# Priority 2: Replit AI integrations (fallback if no user key)
-if not _OPENAI_API_KEY:
-    _OPENAI_API_KEY  = os.environ.get("AI_INTEGRATIONS_OPENAI_API_KEY", "")
-    _OPENAI_BASE_URL = os.environ.get("AI_INTEGRATIONS_OPENAI_BASE_URL", "").rstrip("/")
+# Priority 2: User-provided OpenAI API key (standard api.openai.com)
+_USER_OPENAI_KEY    = os.environ.get("OPENAI_API_KEY2", "") or os.environ.get("OPENAI_API_KEY", "")
+_USER_OPENAI_URL    = "https://api.openai.com/v1"
 
 _session_histories: Dict[str, List[Dict]] = {}
 
 
+def _try_openai_endpoint(url: str, key: str, messages: List[Dict], max_tokens: int) -> Optional[str]:
+    """Make a single OpenAI-compatible API call; return None on any failure."""
+    try:
+        resp = httpx.post(
+            f"{url}/chat/completions",
+            headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
+            json={"model": "gpt-4o-mini", "messages": messages, "max_tokens": max_tokens},
+            timeout=60.0,
+        )
+        resp.raise_for_status()
+        return resp.json()["choices"][0]["message"]["content"]
+    except Exception as exc:
+        logger.warning("OpenAI endpoint %s failed: %s", url, exc)
+        return None
+
+
 # ── Direct OpenAI call via httpx (no new packages) ──────────────────
 def _call_openai(messages: List[Dict], max_tokens: int = 4096) -> Optional[str]:
-    if not _OPENAI_API_KEY or not _OPENAI_BASE_URL:
-        return None
-    try:
-        url = f"{_OPENAI_BASE_URL}/chat/completions"
-        headers = {
-            "Authorization": f"Bearer {_OPENAI_API_KEY}",
-            "Content-Type": "application/json",
-        }
-        payload = {
-            "model": "gpt-4o-mini",
-            "messages": messages,
-            "max_tokens": max_tokens,
-        }
-        with httpx.Client(timeout=60.0) as client:
-            resp = client.post(url, headers=headers, json=payload)
-            resp.raise_for_status()
-            return resp.json()["choices"][0]["message"]["content"]
-    except Exception as exc:
-        logger.warning("OpenAI direct call failed: %s — falling back to Gemini", exc)
-        return None
+    # 1. Try Replit AI integrations first (free, available in all Replit environments)
+    if _REPLIT_OPENAI_KEY and _REPLIT_OPENAI_URL:
+        result = _try_openai_endpoint(_REPLIT_OPENAI_URL, _REPLIT_OPENAI_KEY, messages, max_tokens)
+        if result is not None:
+            logger.info("LLM: Replit AI integrations (gpt-4o-mini)")
+            return result
+
+    # 2. Fall back to user's own OpenAI key
+    if _USER_OPENAI_KEY:
+        result = _try_openai_endpoint(_USER_OPENAI_URL, _USER_OPENAI_KEY, messages, max_tokens)
+        if result is not None:
+            logger.info("LLM: user OpenAI key (gpt-4o-mini)")
+            return result
+
+    return None
 
 
 # ── Gemini LLM fallback via LangChain ────────────────────────────────
