@@ -104,7 +104,7 @@ export function ChatPanel({
       <div
         ref={scrollRef}
         onScroll={handleScroll}
-        className="flex-1 overflow-y-auto relative"
+        className="flex-1 min-h-0 overflow-y-auto relative"
       >
         {isEmpty ? (
           <div className="flex flex-col items-center justify-center h-full py-16 text-center">

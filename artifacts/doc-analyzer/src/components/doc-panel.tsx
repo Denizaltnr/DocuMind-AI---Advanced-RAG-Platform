@@ -66,7 +66,7 @@ export function DocPanel({ selectedDocId, onDocSelect, collapsed }: DocPanelProp
         <div className="w-5 h-px bg-border" />
 
         {/* Document icons */}
-        <div className="flex flex-col items-center gap-1.5 overflow-y-auto flex-1 w-full pb-2">
+        <div className="flex flex-col items-center gap-1.5 overflow-y-auto flex-1 min-h-0 w-full pb-2">
           {isLoading && (
             <Loader2 className="w-3.5 h-3.5 animate-spin text-muted-foreground mt-2" />
           )}
@@ -143,7 +143,7 @@ export function DocPanel({ selectedDocId, onDocSelect, collapsed }: DocPanelProp
       </button>
 
       {/* Document thumbnail cards */}
-      <div className="flex-1 overflow-y-auto space-y-2 pr-0.5">
+      <div className="flex-1 min-h-0 overflow-y-auto space-y-2 pr-0.5">
         {isLoading && (
           <div className="flex items-center justify-center py-8">
             <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />

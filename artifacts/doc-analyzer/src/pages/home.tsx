@@ -289,7 +289,7 @@ export default function Home() {
 
               {/* ── DocPanel ── */}
               <div
-                className="flex-1 overflow-hidden"
+                className="flex-1 min-h-0 overflow-hidden"
                 style={{
                   padding: sidebarOpen ? "4px 16px 16px" : "20px 0 16px",
                   transition: "padding 0.28s cubic-bezier(0.4,0,0.2,1)",
