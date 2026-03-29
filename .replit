@@ -52,3 +52,4 @@ channel = "stable-25_05"
 [userenv]
 
 [userenv.shared]
+VITE_GOOGLE_CLIENT_ID = "630913058373-bskba9v5t7469gh9fpcjuvnda31108p3.apps.googleusercontent.com"
