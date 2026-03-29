@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { getListDocumentsQueryKey } from "@workspace/api-client-react";
+import { uploadPdf, ChatApiError } from "@/lib/chat-api";
 import { useToast } from "./use-toast";
 
 export function useUploadDocument() {
@@ -7,41 +8,36 @@ export function useUploadDocument() {
   const { toast } = useToast();
 
   return useMutation({
-    mutationFn: async (file: File) => {
-      const formData = new FormData();
-      formData.append("file", file);
+    mutationFn: (file: File) => uploadPdf(file),
 
-      // Using the proxy endpoint described in the implementation notes
-      const res = await fetch("/api/py/upload", {
-        method: "POST",
-        body: formData,
-      });
-
-      if (!res.ok) {
-        let errorMessage = "Yükleme sırasında bir hata oluştu.";
-        try {
-          const errorData = await res.json();
-          if (errorData.detail) errorMessage = errorData.detail;
-        } catch {
-          // ignore parsing error
-        }
-        throw new Error(errorMessage);
-      }
-
-      return await res.json();
-    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: getListDocumentsQueryKey() });
       toast({
-        title: "Başarılı",
-        description: "Belge başarıyla yüklendi ve işlendi.",
+        title: "Belge Yüklendi",
+        description: "PDF başarıyla işlendi ve sorgulamaya hazır.",
+        duration: 4000,
       });
     },
+
     onError: (error: Error) => {
+      const isChatApiError = error instanceof ChatApiError;
+
+      const titles: Record<string, string> = {
+        network: "Bağlantı Hatası",
+        timeout: "Zaman Aşımı",
+        server: "Sunucu Hatası",
+        validation: "Geçersiz Dosya",
+        not_found: "Endpoint Bulunamadı",
+        unknown: "Yükleme Hatası",
+      };
+
       toast({
         variant: "destructive",
-        title: "Hata",
+        title: isChatApiError
+          ? titles[(error as ChatApiError).type] ?? "Yükleme Hatası"
+          : "Yükleme Hatası",
         description: error.message,
+        duration: 7000,
       });
     },
   });
