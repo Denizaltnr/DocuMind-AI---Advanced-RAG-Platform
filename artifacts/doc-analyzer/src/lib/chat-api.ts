@@ -174,8 +174,10 @@ export async function uploadPdf(file: File): Promise<unknown> {
 
   let response: Response;
   try {
+    const token = localStorage.getItem(TOKEN_KEY);
     response = await fetch("/api/py/upload", {
       method: "POST",
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
       body: formData,
       signal: controller.signal,
     });
