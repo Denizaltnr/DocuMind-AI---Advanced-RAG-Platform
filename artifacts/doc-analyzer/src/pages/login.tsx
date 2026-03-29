@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { Link, useLocation } from "wouter";
-import { Eye, EyeOff, Mail, Lock, Loader2 } from "lucide-react";
+import { useLocation } from "wouter";
+import { Eye, EyeOff, Mail, Lock, User, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/auth-context";
 
@@ -8,18 +8,68 @@ function getBaseUrl() {
   return import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
 }
 
-export default function Login() {
+function openGooglePopup(
+  onSuccess: (token: string, user: any) => void,
+  onError: (msg: string) => void,
+  onClose: () => void,
+) {
+  const w = 500, h = 600;
+  const left = window.screenX + (window.outerWidth - w) / 2;
+  const top = window.screenY + (window.outerHeight - h) / 2;
+  const popup = window.open(
+    `${getBaseUrl()}/api/auth/google`,
+    "google-oauth",
+    `width=${w},height=${h},left=${left},top=${top},toolbar=no,menubar=no`,
+  );
+  if (!popup) {
+    onError("Popup penceresi açılamadı. Tarayıcı popup engelleyicisini kapatın.");
+    return;
+  }
+  const onMessage = (event: MessageEvent) => {
+    if (event.data?.type === "google-auth-success") {
+      cleanup();
+      onSuccess(event.data.token, event.data.user);
+    } else if (event.data?.type === "google-auth-error") {
+      cleanup();
+      onError(event.data.error ?? "Google girişi başarısız.");
+    }
+  };
+  const timer = setInterval(() => {
+    if (popup.closed) { cleanup(); onClose(); }
+  }, 500);
+  const cleanup = () => {
+    clearInterval(timer);
+    window.removeEventListener("message", onMessage);
+  };
+  window.addEventListener("message", onMessage);
+}
+
+export default function AuthPage() {
   const [, navigate] = useLocation();
   const { login } = useAuth();
 
+  const [tab, setTab] = useState<"login" | "register">("login");
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [fullName, setFullName] = useState("");
   const [showPass, setShowPass] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const resetForm = () => {
+    setEmail(""); setPassword(""); setFullName("");
+    setError(null); setSuccess(null); setShowPass(false);
+  };
+
+  const switchTab = (t: "login" | "register") => {
+    setTab(t);
+    resetForm();
+  };
+
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setIsLoading(true);
@@ -40,51 +90,46 @@ export default function Login() {
     }
   };
 
+  const handleRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (password.length < 6) { setError("Şifre en az 6 karakter olmalıdır."); return; }
+    setError(null);
+    setIsLoading(true);
+    try {
+      const res = await fetch(`${getBaseUrl()}/api/auth/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password, full_name: fullName || undefined }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail ?? "Kayıt başarısız.");
+      login(data.access_token, data.user);
+      navigate("/");
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleGoogle = () => {
     setGoogleLoading(true);
     setError(null);
-
-    const w = 500, h = 600;
-    const left = window.screenX + (window.outerWidth - w) / 2;
-    const top = window.screenY + (window.outerHeight - h) / 2;
-    const popup = window.open(
-      `${getBaseUrl()}/api/auth/google`,
-      "google-oauth",
-      `width=${w},height=${h},left=${left},top=${top},toolbar=no,menubar=no`
+    openGooglePopup(
+      (token, user) => { setGoogleLoading(false); login(token, user); navigate("/"); },
+      (msg) => { setGoogleLoading(false); setError(msg); },
+      () => setGoogleLoading(false),
     );
-
-    if (!popup) {
-      setError("Popup penceresi açılamadı. Tarayıcı popup engelleyicisini kapatın.");
-      setGoogleLoading(false);
-      return;
-    }
-
-    const onMessage = (event: MessageEvent) => {
-      if (event.data?.type === "google-auth-success") {
-        window.removeEventListener("message", onMessage);
-        setGoogleLoading(false);
-        login(event.data.token, event.data.user);
-        navigate("/");
-      } else if (event.data?.type === "google-auth-error") {
-        window.removeEventListener("message", onMessage);
-        setGoogleLoading(false);
-        setError(event.data.error ?? "Google girişi başarısız.");
-      }
-    };
-    window.addEventListener("message", onMessage);
-
-    // Clean up if popup is closed manually
-    const timer = setInterval(() => {
-      if (popup.closed) {
-        clearInterval(timer);
-        window.removeEventListener("message", onMessage);
-        setGoogleLoading(false);
-      }
-    }, 500);
   };
 
+  const inputClass = cn(
+    "w-full py-2.5 text-sm rounded-2xl border border-border bg-background",
+    "focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary",
+    "placeholder:text-muted-foreground/60 transition-all",
+  );
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background px-4">
+    <div className="min-h-screen flex items-center justify-center bg-background px-4 py-8">
       <div className="w-full max-w-sm">
 
         {/* Logo */}
@@ -99,120 +144,185 @@ export default function Login() {
           <h1 className="text-xl font-semibold text-foreground tracking-tight">
             DocuMind<span className="text-primary"> AI</span>
           </h1>
-          <p className="text-sm text-muted-foreground mt-1">Hesabınıza giriş yapın</p>
+          <p className="text-sm text-muted-foreground mt-1">
+            {tab === "login" ? "Hesabınıza giriş yapın" : "Ücretsiz hesap oluşturun"}
+          </p>
         </div>
 
         {/* Card */}
-        <div className="bg-white border border-border rounded-3xl p-7 shadow-sm">
+        <div className="bg-white border border-border rounded-3xl shadow-sm overflow-hidden">
 
-          {/* Google button */}
-          <button
-            type="button"
-            onClick={handleGoogle}
-            disabled={googleLoading}
-            className={cn(
-              "w-full flex items-center justify-center gap-3 px-4 py-2.5 rounded-2xl",
-              "border border-border text-sm font-medium text-foreground",
-              "hover:bg-muted transition-all duration-200 hover:-translate-y-0.5 hover:shadow-sm",
-              "active:translate-y-0 disabled:opacity-60 disabled:cursor-not-allowed"
-            )}
-          >
-            {googleLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <GoogleIcon />}
-            Google ile Giriş Yap
-          </button>
-
-          <div className="flex items-center gap-3 my-5">
-            <div className="flex-1 h-px bg-border" />
-            <span className="text-xs text-muted-foreground">veya</span>
-            <div className="flex-1 h-px bg-border" />
+          {/* Tabs */}
+          <div className="flex border-b border-border">
+            <button
+              type="button"
+              onClick={() => switchTab("login")}
+              className={cn(
+                "flex-1 py-3.5 text-sm font-medium transition-all",
+                tab === "login"
+                  ? "text-primary border-b-2 border-primary bg-primary/5"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted/50",
+              )}
+            >
+              Giriş Yap
+            </button>
+            <button
+              type="button"
+              onClick={() => switchTab("register")}
+              className={cn(
+                "flex-1 py-3.5 text-sm font-medium transition-all",
+                tab === "register"
+                  ? "text-primary border-b-2 border-primary bg-primary/5"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted/50",
+              )}
+            >
+              Kayıt Ol
+            </button>
           </div>
 
-          {/* Form */}
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="p-7">
+            {/* Google button */}
+            <button
+              type="button"
+              onClick={handleGoogle}
+              disabled={googleLoading}
+              className={cn(
+                "w-full flex items-center justify-center gap-3 px-4 py-2.5 rounded-2xl",
+                "border border-border text-sm font-medium text-foreground",
+                "hover:bg-muted transition-all duration-200 hover:-translate-y-0.5 hover:shadow-sm",
+                "active:translate-y-0 disabled:opacity-60 disabled:cursor-not-allowed",
+              )}
+            >
+              {googleLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <GoogleIcon />}
+              {tab === "login" ? "Google ile Giriş Yap" : "Google ile Kayıt Ol"}
+            </button>
+
+            <div className="flex items-center gap-3 my-5">
+              <div className="flex-1 h-px bg-border" />
+              <span className="text-xs text-muted-foreground">veya</span>
+              <div className="flex-1 h-px bg-border" />
+            </div>
+
+            {/* Error / Success */}
             {error && (
-              <div className="bg-destructive/5 border border-destructive/20 text-destructive text-xs px-3 py-2.5 rounded-2xl">
+              <div className="mb-4 bg-destructive/5 border border-destructive/20 text-destructive text-xs px-3 py-2.5 rounded-2xl">
                 {error}
               </div>
             )}
-
-            {/* Email */}
-            <div>
-              <label className="text-xs font-medium text-foreground block mb-1.5">
-                E-posta
-              </label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <input
-                  type="email"
-                  required
-                  autoComplete="email"
-                  value={email}
-                  onChange={e => setEmail(e.target.value)}
-                  placeholder="ornek@email.com"
-                  className={cn(
-                    "w-full pl-9 pr-4 py-2.5 text-sm rounded-2xl border border-border bg-background",
-                    "focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary",
-                    "placeholder:text-muted-foreground/60 transition-all"
-                  )}
-                />
+            {success && (
+              <div className="mb-4 bg-green-50 border border-green-200 text-green-700 text-xs px-3 py-2.5 rounded-2xl">
+                {success}
               </div>
-            </div>
+            )}
 
-            {/* Password */}
-            <div>
-              <label className="text-xs font-medium text-foreground block mb-1.5">
-                Şifre
-              </label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <input
-                  type={showPass ? "text" : "password"}
-                  required
-                  autoComplete="current-password"
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  placeholder="••••••••"
+            {/* LOGIN FORM */}
+            {tab === "login" && (
+              <form onSubmit={handleLogin} className="space-y-4">
+                <div>
+                  <label className="text-xs font-medium text-foreground block mb-1.5">E-posta</label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <input
+                      type="email" required autoComplete="email"
+                      value={email} onChange={e => setEmail(e.target.value)}
+                      placeholder="ornek@email.com"
+                      className={cn(inputClass, "pl-9 pr-4")}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-foreground block mb-1.5">Şifre</label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <input
+                      type={showPass ? "text" : "password"} required autoComplete="current-password"
+                      value={password} onChange={e => setPassword(e.target.value)}
+                      placeholder="••••••••"
+                      className={cn(inputClass, "pl-9 pr-10")}
+                    />
+                    <button type="button" onClick={() => setShowPass(v => !v)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors">
+                      {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+                <button type="submit" disabled={isLoading}
                   className={cn(
-                    "w-full pl-9 pr-10 py-2.5 text-sm rounded-2xl border border-border bg-background",
-                    "focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary",
-                    "placeholder:text-muted-foreground/60 transition-all"
-                  )}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPass(v => !v)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    "w-full flex items-center justify-center gap-2 py-2.5 rounded-2xl",
+                    "bg-primary text-white text-sm font-medium",
+                    "hover:-translate-y-0.5 hover:shadow-lg hover:shadow-primary/30 hover:bg-primary/90",
+                    "active:translate-y-0 transition-all duration-200",
+                    "disabled:opacity-60 disabled:cursor-not-allowed disabled:transform-none",
+                  )}>
+                  {isLoading && <Loader2 className="w-4 h-4 animate-spin" />}
+                  Giriş Yap
                 </button>
-              </div>
-            </div>
+              </form>
+            )}
 
-            {/* Submit */}
-            <button
-              type="submit"
-              disabled={isLoading}
-              className={cn(
-                "w-full flex items-center justify-center gap-2 py-2.5 rounded-2xl",
-                "bg-primary text-white text-sm font-medium",
-                "hover:-translate-y-0.5 hover:shadow-lg hover:shadow-primary/30 hover:bg-primary/90",
-                "active:translate-y-0 transition-all duration-200",
-                "disabled:opacity-60 disabled:cursor-not-allowed disabled:transform-none"
-              )}
-            >
-              {isLoading && <Loader2 className="w-4 h-4 animate-spin" />}
-              Giriş Yap
-            </button>
-          </form>
+            {/* REGISTER FORM */}
+            {tab === "register" && (
+              <form onSubmit={handleRegister} className="space-y-4">
+                <div>
+                  <label className="text-xs font-medium text-foreground block mb-1.5">
+                    Ad Soyad <span className="text-muted-foreground font-normal">(isteğe bağlı)</span>
+                  </label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <input
+                      type="text" autoComplete="name"
+                      value={fullName} onChange={e => setFullName(e.target.value)}
+                      placeholder="Adınız Soyadınız"
+                      className={cn(inputClass, "pl-9 pr-4")}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-foreground block mb-1.5">E-posta</label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <input
+                      type="email" required autoComplete="email"
+                      value={email} onChange={e => setEmail(e.target.value)}
+                      placeholder="ornek@email.com"
+                      className={cn(inputClass, "pl-9 pr-4")}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-foreground block mb-1.5">Şifre</label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <input
+                      type={showPass ? "text" : "password"} required minLength={6} autoComplete="new-password"
+                      value={password} onChange={e => setPassword(e.target.value)}
+                      placeholder="En az 6 karakter"
+                      className={cn(inputClass, "pl-9 pr-10")}
+                    />
+                    <button type="button" onClick={() => setShowPass(v => !v)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors">
+                      {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+                <button type="submit" disabled={isLoading}
+                  className={cn(
+                    "w-full flex items-center justify-center gap-2 py-2.5 rounded-2xl",
+                    "bg-primary text-white text-sm font-medium",
+                    "hover:-translate-y-0.5 hover:shadow-lg hover:shadow-primary/30 hover:bg-primary/90",
+                    "active:translate-y-0 transition-all duration-200",
+                    "disabled:opacity-60 disabled:cursor-not-allowed disabled:transform-none",
+                  )}>
+                  {isLoading && <Loader2 className="w-4 h-4 animate-spin" />}
+                  Kayıt Ol
+                </button>
+                <p className="text-center text-xs text-muted-foreground">
+                  Kayıt olarak <span className="text-foreground">Kullanım Koşulları</span>'nı kabul etmiş olursunuz.
+                </p>
+              </form>
+            )}
+          </div>
         </div>
-
-        {/* Sign up link */}
-        <p className="text-center text-sm text-muted-foreground mt-5">
-          Hesabınız yok mu?{" "}
-          <Link href="/signup" className="text-primary font-medium hover:underline">
-            Kayıt Olun
-          </Link>
-        </p>
       </div>
     </div>
   );

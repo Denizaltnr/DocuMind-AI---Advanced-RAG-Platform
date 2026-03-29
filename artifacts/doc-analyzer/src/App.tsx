@@ -5,7 +5,6 @@ import { Router as WouterRouter, Switch, Route, Redirect } from "wouter";
 import { AuthProvider, useAuth } from "@/contexts/auth-context";
 import Home from "@/pages/home";
 import Login from "@/pages/login";
-import Signup from "@/pages/signup";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -59,9 +58,7 @@ function AppRoutes() {
       </Route>
 
       <Route path="/signup">
-        <AuthRoute>
-          <Signup />
-        </AuthRoute>
+        <Redirect to="/login" />
       </Route>
 
       <Route path="/">
