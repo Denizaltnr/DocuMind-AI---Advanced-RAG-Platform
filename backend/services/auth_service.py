@@ -15,7 +15,15 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # 7 days
 
 GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "")
 GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET", "")
-GOOGLE_REDIRECT_URI = os.environ.get("GOOGLE_REDIRECT_URI", "")
+_GOOGLE_REDIRECT_URI_ENV = os.environ.get("GOOGLE_REDIRECT_URI", "")
+# If env var is not a valid URL (e.g. accidentally set to wrong value), fall back to computed URL
+_REPLIT_DOMAIN = os.environ.get("REPLIT_DEV_DOMAIN", "")
+if _GOOGLE_REDIRECT_URI_ENV.startswith("https://"):
+    GOOGLE_REDIRECT_URI = _GOOGLE_REDIRECT_URI_ENV
+elif _REPLIT_DOMAIN:
+    GOOGLE_REDIRECT_URI = f"https://{_REPLIT_DOMAIN}/api/auth/google/callback"
+else:
+    GOOGLE_REDIRECT_URI = ""
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
