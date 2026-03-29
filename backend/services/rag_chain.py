@@ -9,21 +9,28 @@ from services.embeddings import search_similar_chunks
 
 logger = logging.getLogger(__name__)
 
-GOOGLE_API_KEY  = os.environ.get("GOOGLE_API_KEY")
-OPENAI_BASE_URL = os.environ.get("AI_INTEGRATIONS_OPENAI_BASE_URL", "").rstrip("/")
-OPENAI_API_KEY  = os.environ.get("AI_INTEGRATIONS_OPENAI_API_KEY", "dummy-key")
+GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY")
+
+# Priority 1: User-provided OpenAI API key (standard OpenAI)
+_OPENAI_API_KEY  = os.environ.get("OPENAI_API_KEY", "")
+_OPENAI_BASE_URL = "https://api.openai.com/v1"
+
+# Priority 2: Replit AI integrations (fallback if no user key)
+if not _OPENAI_API_KEY:
+    _OPENAI_API_KEY  = os.environ.get("AI_INTEGRATIONS_OPENAI_API_KEY", "")
+    _OPENAI_BASE_URL = os.environ.get("AI_INTEGRATIONS_OPENAI_BASE_URL", "").rstrip("/")
 
 _session_histories: Dict[str, List[Dict]] = {}
 
 
 # ── Direct OpenAI call via httpx (no new packages) ──────────────────
 def _call_openai(messages: List[Dict], max_tokens: int = 4096) -> Optional[str]:
-    if not OPENAI_BASE_URL:
+    if not _OPENAI_API_KEY or not _OPENAI_BASE_URL:
         return None
     try:
-        url = f"{OPENAI_BASE_URL}/chat/completions"
+        url = f"{_OPENAI_BASE_URL}/chat/completions"
         headers = {
-            "Authorization": f"Bearer {OPENAI_API_KEY}",
+            "Authorization": f"Bearer {_OPENAI_API_KEY}",
             "Content-Type": "application/json",
         }
         payload = {
