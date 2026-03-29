@@ -4,7 +4,8 @@ import random
 import logging
 from typing import List, Dict, Optional
 
-from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings
+from langchain_openai import ChatOpenAI
+from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langchain.schema import HumanMessage, SystemMessage
 from langchain.chains import ConversationalRetrievalChain
 from langchain.memory import ConversationBufferWindowMemory
@@ -14,12 +15,22 @@ from services.embeddings import search_similar_chunks, CHROMA_PATH
 logger = logging.getLogger(__name__)
 
 GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY")
+OPENAI_BASE_URL = os.environ.get("AI_INTEGRATIONS_OPENAI_BASE_URL")
+OPENAI_API_KEY = os.environ.get("AI_INTEGRATIONS_OPENAI_API_KEY", "dummy-key")
 
 _session_memories: Dict[str, ConversationBufferWindowMemory] = {}
 
 
 # ── LLM factory ──────────────────────────────────────────────────
-def get_llm(temperature: float = 0.3) -> ChatGoogleGenerativeAI:
+def get_llm(temperature: float = 0.3) -> ChatOpenAI:
+    if OPENAI_BASE_URL:
+        return ChatOpenAI(
+            model="gpt-5-mini",
+            openai_api_key=OPENAI_API_KEY,
+            openai_api_base=OPENAI_BASE_URL,
+            max_completion_tokens=8192,
+        )
+    from langchain_google_genai import ChatGoogleGenerativeAI
     return ChatGoogleGenerativeAI(
         model="gemini-2.5-flash",
         temperature=temperature,
@@ -47,7 +58,7 @@ def _invoke_with_retry(llm, messages, max_retries: int = 4):
             if is_rate_limit and attempt < max_retries - 1:
                 wait = (2 ** attempt) + random.uniform(0.5, 1.5)
                 logger.warning(
-                    "Gemini rate-limit (deneme %d/%d). %.1f sn bekleniyor…",
+                    "LLM rate-limit (deneme %d/%d). %.1f sn bekleniyor…",
                     attempt + 1, max_retries, wait,
                 )
                 time.sleep(wait)
@@ -204,7 +215,7 @@ def chat_with_documents(
         )
         if is_rate_limit:
             raise RuntimeError(
-                "Gemini API rate limiti aşıldı. Lütfen birkaç saniye bekleyip tekrar deneyin."
+                "AI API rate limiti aşıldı. Lütfen birkaç saniye bekleyip tekrar deneyin."
             ) from exc
         raise
 
