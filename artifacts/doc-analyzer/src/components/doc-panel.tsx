@@ -1,5 +1,6 @@
-import { useListDocuments, useDeleteDocument } from "@workspace/api-client-react";
+import { useListDocuments, useDeleteDocument, getListDocumentsQueryKey } from "@workspace/api-client-react";
 import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   FileText,
   Loader2,
@@ -21,6 +22,7 @@ interface DocPanelProps {
 export function DocPanel({ selectedDocId, onDocSelect, collapsed }: DocPanelProps) {
   const { data: documents, isLoading } = useListDocuments();
   const { mutate: deleteDoc } = useDeleteDocument();
+  const queryClient = useQueryClient();
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const { t, lang } = useLang();
   const dateLocale = lang === "tr" ? "tr-TR" : "en-GB";
@@ -33,6 +35,7 @@ export function DocPanel({ selectedDocId, onDocSelect, collapsed }: DocPanelProp
       {
         onSettled: () => setDeletingId(null),
         onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: getListDocumentsQueryKey() });
           if (selectedDocId === id) onDocSelect("all");
         },
       }
