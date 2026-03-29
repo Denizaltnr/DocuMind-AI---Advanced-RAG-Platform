@@ -6,10 +6,9 @@ from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from typing import List, Optional
 
-from services.rag_chain import chat_with_documents, clear_session, get_llm
+from services.rag_chain import chat_with_documents, clear_session, generate_title
 from services.auth_service import get_connection
 from middleware.auth import get_current_user
-from langchain.schema import HumanMessage
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -78,19 +77,7 @@ def _db_save_message(conn, session_id: str, role: str, content: str, sources=Non
 
 
 def _generate_title(question: str) -> str:
-    try:
-        llm = get_llm(temperature=0.0)
-        prompt = (
-            "Generate a very short chat title (3-6 words max) for a conversation "
-            "that starts with this question. Respond in the same language as the question. "
-            "Only output the title, nothing else.\n\nQuestion: " + question
-        )
-        response = llm.invoke([HumanMessage(content=prompt)])
-        title = response.content.strip().strip('"\'')
-        return title[:80] if title else question[:60]
-    except Exception as e:
-        logger.warning("Title generation failed: %s", e)
-        return question[:60]
+    return generate_title(question)
 
 
 # ── Pydantic models ──────────────────────────────────────────────────
