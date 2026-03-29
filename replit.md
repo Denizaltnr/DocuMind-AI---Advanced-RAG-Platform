@@ -91,9 +91,12 @@ backend/                     # Python FastAPI RAG + Auth Backend
 ### Sohbet (JWT gerekli)
 | Metod | Path | Açıklama |
 |-------|------|----------|
-| POST | `/api/chat` | RAG sohbet sorgusu |
-| POST | `/api/chat/clear-session` | Oturum geçmişini temizle |
-| GET | `/api/history` | Sohbet geçmişi |
+| POST | `/api/chat` | RAG sohbet sorgusu (session oluşturur / devam ettirir) |
+| POST | `/api/chat/clear-session` | In-memory oturum geçmişini temizle |
+| GET | `/api/chat/sessions` | Kullanıcının sohbet oturumlarını listele |
+| GET | `/api/chat/sessions/:id/messages` | Bir oturumdaki mesajları getir |
+| DELETE | `/api/chat/sessions/:id` | Sohbet oturumunu sil |
+| GET | `/api/history` | Eski sohbet geçmişi (legacy) |
 
 ## Veritabanı Şeması (PostgreSQL)
 
@@ -108,6 +111,25 @@ CREATE TABLE users (
   is_active BOOLEAN DEFAULT TRUE,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE chat_sessions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  title VARCHAR(255) DEFAULT 'Yeni Sohbet',  -- Gemini ile otomatik üretilir
+  document_id VARCHAR(255),
+  document_name VARCHAR(255),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE messages (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  session_id UUID NOT NULL REFERENCES chat_sessions(id) ON DELETE CASCADE,
+  role VARCHAR(20) NOT NULL,  -- 'user' | 'assistant'
+  content TEXT NOT NULL,
+  sources JSONB,
+  created_at TIMESTAMPTZ DEFAULT NOW()
 );
 ```
 

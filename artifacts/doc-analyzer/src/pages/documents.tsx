@@ -5,7 +5,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { FileText, Trash2, Calendar, Layers, FileDigit, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
-import { motion } from "framer-motion";
+import { motion, type Variants } from "framer-motion";
 import { useToast } from "@/hooks/use-toast";
 
 export default function Documents() {
@@ -39,7 +39,7 @@ export default function Documents() {
     }
   };
 
-  const item = {
+  const item: Variants = {
     hidden: { opacity: 0, y: 20 },
     show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
   };

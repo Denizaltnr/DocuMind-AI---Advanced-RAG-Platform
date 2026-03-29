@@ -75,3 +75,24 @@ export interface HistoryItem {
   createdAt: string;
   sources: SourceChunk[];
 }
+
+export interface SessionItem {
+  id: string;
+  title: string;
+  documentId?: string;
+  documentName?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface MessageItem {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  sources?: SourceChunk[];
+  createdAt: string;
+}
+
+export interface DeleteSessionResponse {
+  success: boolean;
+}

@@ -102,6 +102,61 @@ paths:
               schema:
                 $ref: "#/components/schemas/ChatResponse"
 
+  /chat/sessions:
+    get:
+      operationId: listChatSessions
+      tags: [query]
+      summary: List all chat sessions for the current user
+      responses:
+        "200":
+          description: List of chat sessions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SessionItem"
+
+  /chat/sessions/{sessionId}/messages:
+    get:
+      operationId: getSessionMessages
+      tags: [query]
+      summary: Get all messages for a chat session
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of messages
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MessageItem"
+
+  /chat/sessions/{sessionId}:
+    delete:
+      operationId: deleteChatSession
+      tags: [query]
+      summary: Delete a chat session
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Session deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeleteSessionResponse"
+
   /chat/clear-session:
     post:
       operationId: clearChatSession
@@ -320,3 +375,57 @@ components:
         - answer
         - createdAt
         - sources
+
+    SessionItem:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        documentId:
+          type: string
+        documentName:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - title
+        - createdAt
+        - updatedAt
+
+    MessageItem:
+      type: object
+      properties:
+        id:
+          type: string
+        role:
+          type: string
+          enum: [user, assistant]
+        content:
+          type: string
+        sources:
+          type: array
+          items:
+            $ref: "#/components/schemas/SourceChunk"
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - role
+        - content
+        - createdAt
+
+    DeleteSessionResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+      required:
+        - success

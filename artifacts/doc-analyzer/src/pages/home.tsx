@@ -1,16 +1,30 @@
-import { useState, useCallback } from "react";
-import { useGetHistory, useClearChatSession, useListDocuments } from "@workspace/api-client-react";
-import type { SourceChunk } from "@workspace/api-client-react";
+import { useState, useCallback, useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import {
+  useListDocuments,
+  useClearChatSession,
+  useListChatSessions,
+  useGetSessionMessages,
+  useDeleteChatSession,
+  getListChatSessionsQueryKey,
+} from "@workspace/api-client-react";
+import type { SourceChunk, SessionItem } from "@workspace/api-client-react";
 import { sendChatMessage, clearChatSession, ChatApiError } from "@/lib/chat-api";
 import { Header } from "@/components/header";
 import { DocPanel } from "@/components/doc-panel";
 import { ChatPanel, type ChatMessage } from "@/components/chat-panel";
-import { RotateCcw, WifiOff, ServerCrash, AlertTriangle, Clock } from "lucide-react";
+import {
+  RotateCcw,
+  MessageSquare,
+  Trash2,
+  Clock,
+  ChevronRight,
+} from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useLang } from "@/contexts/lang-context";
 import { motion, AnimatePresence } from "framer-motion";
 
-const SIDEBAR_EXPANDED_W = 256;
+const SIDEBAR_EXPANDED_W = 272;
 const SIDEBAR_COLLAPSED_W = 48;
 
 export default function Home() {
@@ -20,12 +34,39 @@ export default function Home() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isSending, setIsSending] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [loadingSessionId, setLoadingSessionId] = useState<string | undefined>();
 
   const { toast } = useToast();
   const { t } = useLang();
-  const { data: historyData } = useGetHistory();
+  const queryClient = useQueryClient();
+
   const { mutate: clearSessionMutation } = useClearChatSession();
   const { data: documents } = useListDocuments();
+  const { data: sessions = [], refetch: refetchSessions } = useListChatSessions();
+
+  // Load messages when switching to an existing session
+  const { data: loadedMessages } = useGetSessionMessages(loadingSessionId ?? "");
+
+  useEffect(() => {
+    if (!loadingSessionId || !loadedMessages) return;
+    const mapped: ChatMessage[] = loadedMessages.map(m => ({
+      id: m.id,
+      role: m.role as "user" | "assistant",
+      content: m.content,
+      sources: m.sources as unknown as SourceChunk[] | undefined,
+    }));
+    setMessages(mapped);
+    setSessionId(loadingSessionId);
+    setLoadingSessionId(undefined);
+  }, [loadedMessages, loadingSessionId]);
+
+  const { mutate: deleteSessionMutation } = useDeleteChatSession({
+    mutation: {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getListChatSessionsQueryKey() });
+      },
+    },
+  });
 
   /* ── Selected doc label ─────────────────────────────── */
   const selectedDocLabel =
@@ -41,10 +82,30 @@ export default function Home() {
     }
     setMessages([]);
     setSessionId(undefined);
+    setLoadingSessionId(undefined);
     if (newDocId !== undefined) setSelectedDocId(newDocId);
   }, [sessionId, clearSessionMutation]);
 
   const handleDocChange = (id: string | "all") => resetSession(id);
+
+  const handleSelectSession = (session: SessionItem) => {
+    if (session.id === sessionId) return;
+    setMessages([]);
+    setSessionId(undefined);
+    if (session.documentId) {
+      setSelectedDocId(session.documentId);
+    }
+    setLoadingSessionId(session.id);
+  };
+
+  const handleDeleteSession = (e: React.MouseEvent, sid: string) => {
+    e.stopPropagation();
+    deleteSessionMutation({ sessionId: sid });
+    if (sid === sessionId) {
+      setMessages([]);
+      setSessionId(undefined);
+    }
+  };
 
   /* ── Error toast ─────────────────────────────────────── */
   const showErrorToast = (err: ChatApiError) => {
@@ -69,7 +130,15 @@ export default function Home() {
         sessionId,
         topK: 5,
       });
-      if (!sessionId) setSessionId(data.sessionId);
+      if (!sessionId) {
+        setSessionId(data.sessionId);
+        // Refresh session list after first message (title may be generating)
+        setTimeout(() => {
+          queryClient.invalidateQueries({ queryKey: getListChatSessionsQueryKey() });
+        }, 2500);
+      } else {
+        queryClient.invalidateQueries({ queryKey: getListChatSessionsQueryKey() });
+      }
       setMessages(prev => [...prev, {
         id: crypto.randomUUID(),
         role: "assistant",
@@ -90,17 +159,28 @@ export default function Home() {
     } finally {
       setIsSending(false);
     }
-  }, [question, isSending, selectedDocId, sessionId]);
+  }, [question, isSending, selectedDocId, sessionId, queryClient]);
+
+  /* ── Time label ─────────────────────────────────────── */
+  const relativeTime = (iso: string) => {
+    const diff = Date.now() - new Date(iso).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return "şimdi";
+    if (mins < 60) return `${mins}d önce`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs}s önce`;
+    return `${Math.floor(hrs / 24)}g önce`;
+  };
 
   return (
     <div className="h-screen overflow-hidden flex flex-col bg-background">
-      {/* Fixed Header — carries the sidebar toggle */}
+      {/* Fixed Header */}
       <Header
         sidebarOpen={sidebarOpen}
         onToggleSidebar={() => setSidebarOpen(o => !o)}
       />
 
-      {/* Content area — below fixed header */}
+      {/* Content area */}
       <div className="flex-1 overflow-hidden pt-14">
         <div className="h-full flex">
 
@@ -111,38 +191,107 @@ export default function Home() {
             className="shrink-0 flex flex-col overflow-hidden border-r border-border bg-background"
             style={{ willChange: "width" }}
           >
-            {/* Inner wrapper — fixed size so content doesn't reflow during animation */}
             <div
               className="flex flex-col h-full overflow-hidden"
               style={{ width: SIDEBAR_EXPANDED_W }}
             >
-              {/* "New chat" mini bar — only in expanded mode */}
+              {/* ── Top: New Chat button ── */}
+              <div className="px-4 pt-4 pb-2 shrink-0">
+                <button
+                  onClick={() => resetSession()}
+                  disabled={isSending}
+                  className="flex items-center gap-2 w-full px-3 py-2 rounded-xl border border-border bg-white text-xs text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-40 transition-all font-normal"
+                >
+                  <RotateCcw className="w-3.5 h-3.5 shrink-0" />
+                  <AnimatePresence>
+                    {sidebarOpen && (
+                      <motion.span
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.15 }}
+                      >
+                        {t.home.newChat}
+                      </motion.span>
+                    )}
+                  </AnimatePresence>
+                </button>
+              </div>
+
+              {/* ── Chat History ── */}
               <AnimatePresence>
-                {sidebarOpen && messages.length > 0 && (
+                {sidebarOpen && sessions.length > 0 && (
                   <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: "auto" }}
-                    exit={{ opacity: 0, height: 0 }}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
                     transition={{ duration: 0.2 }}
-                    className="px-4 pt-5 pb-0"
+                    className="px-4 pb-1 shrink-0"
                   >
-                    <button
-                      onClick={() => resetSession()}
-                      disabled={isSending}
-                      className="flex items-center gap-2 w-full px-3 py-2 mb-4 rounded-2xl border border-border bg-white text-xs text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-40 transition-all font-normal"
-                    >
-                      <RotateCcw className="w-3.5 h-3.5 shrink-0" />
-                      {t.home.newChat}
-                    </button>
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 mb-1">
+                      {t.home.chatHistory ?? "Sohbet Geçmişi"}
+                    </p>
                   </motion.div>
                 )}
               </AnimatePresence>
 
-              {/* DocPanel — fills remaining height, handles its own collapsed view */}
+              <AnimatePresence>
+                {sidebarOpen && sessions.length > 0 && (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="px-2 overflow-y-auto"
+                    style={{ maxHeight: "220px" }}
+                  >
+                    {sessions.map(session => (
+                      <div
+                        key={session.id}
+                        onClick={() => handleSelectSession(session)}
+                        className={`group flex items-start gap-2 w-full px-2 py-2 rounded-lg cursor-pointer transition-all mb-0.5 ${
+                          session.id === sessionId
+                            ? "bg-primary/8 border border-primary/20"
+                            : "hover:bg-muted"
+                        }`}
+                      >
+                        <MessageSquare className="w-3.5 h-3.5 shrink-0 mt-0.5 text-muted-foreground/60" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-medium text-foreground truncate leading-tight">
+                            {session.title}
+                          </p>
+                          {session.documentName && (
+                            <p className="text-[10px] text-muted-foreground/70 truncate mt-0.5">
+                              {session.documentName}
+                            </p>
+                          )}
+                          <p className="text-[10px] text-muted-foreground/50 mt-0.5">
+                            {relativeTime(session.updatedAt)}
+                          </p>
+                        </div>
+                        <button
+                          onClick={e => handleDeleteSession(e, session.id)}
+                          className="shrink-0 opacity-0 group-hover:opacity-100 p-0.5 rounded text-muted-foreground hover:text-red-500 transition-all"
+                          title="Sil"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {/* ── Divider ── */}
+              {sidebarOpen && sessions.length > 0 && (
+                <div className="mx-4 my-2 border-t border-border/50 shrink-0" />
+              )}
+
+              {/* ── DocPanel ── */}
               <div
                 className="flex-1 overflow-hidden"
                 style={{
-                  padding: sidebarOpen ? "20px 16px 16px" : "20px 0 16px",
+                  padding: sidebarOpen ? "4px 16px 16px" : "20px 0 16px",
                   transition: "padding 0.28s cubic-bezier(0.4,0,0.2,1)",
                 }}
               >
@@ -155,11 +304,11 @@ export default function Home() {
             </div>
           </motion.div>
 
-          {/* ── Chat Panel — grows automatically ─────────────── */}
+          {/* ── Chat Panel ─────────────────────────────────────── */}
           <div className="flex-1 min-w-0 overflow-hidden px-6 py-6">
             <ChatPanel
               messages={messages}
-              isSending={isSending}
+              isSending={isSending || !!loadingSessionId}
               onSend={handleSend}
               question={question}
               onQuestionChange={setQuestion}

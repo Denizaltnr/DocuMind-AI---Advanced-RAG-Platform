@@ -1,7 +1,7 @@
 import { Layout } from "@/components/layout";
 import { useState, useRef, useEffect } from "react";
 import { useChatWithDocuments, useClearChatSession, useListDocuments } from "@workspace/api-client-react";
-import type { ChatResponse } from "@workspace/api-client-react/src/generated/api.schemas";
+import type { ChatResponse, SourceChunk } from "@workspace/api-client-react";
 import { Send, Sparkles, Bot, User, FileText, Loader2, CheckCircle, Trash2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/hooks/use-toast";

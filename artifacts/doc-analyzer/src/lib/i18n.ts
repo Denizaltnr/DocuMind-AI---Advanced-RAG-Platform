@@ -92,6 +92,7 @@ export const translations = {
     home: {
       allDocs: "Tüm Belgeler",
       newChat: "Yeni Sohbet",
+      chatHistory: "Sohbet Geçmişi",
       errors: {
         network: "Bağlantı Hatası",
         timeout: "Zaman Aşımı",
@@ -197,6 +198,7 @@ export const translations = {
     home: {
       allDocs: "All Documents",
       newChat: "New Chat",
+      chatHistory: "Chat History",
       errors: {
         network: "Connection Error",
         timeout: "Timeout",
