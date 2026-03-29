@@ -1,39 +1,74 @@
 import os
+import time
+import random
+import logging
 from typing import List, Dict, Optional
-from langchain_openai import ChatOpenAI
+
+from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings
 from langchain.schema import HumanMessage, SystemMessage
 from langchain.chains import ConversationalRetrievalChain
 from langchain.memory import ConversationBufferWindowMemory
-from langchain_openai import OpenAIEmbeddings
 from langchain_chroma import Chroma
 from services.embeddings import search_similar_chunks, CHROMA_PATH
 
-OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
+logger = logging.getLogger(__name__)
+
+GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY")
 
 _session_memories: Dict[str, ConversationBufferWindowMemory] = {}
 
 
-def get_llm(temperature: float = 0.1) -> ChatOpenAI:
-    return ChatOpenAI(
-        model="gpt-4o-mini",
+# ── LLM factory ──────────────────────────────────────────────────
+def get_llm(temperature: float = 0.3) -> ChatGoogleGenerativeAI:
+    return ChatGoogleGenerativeAI(
+        model="gemini-1.5-flash",
         temperature=temperature,
-        openai_api_key=OPENAI_API_KEY,
+        google_api_key=GOOGLE_API_KEY,
+        convert_system_message_to_human=True,
     )
 
 
+# ── Retry wrapper (429 / ResourceExhausted) ───────────────────────
+def _invoke_with_retry(llm, messages, max_retries: int = 4):
+    """
+    Ücretsiz Gemini katmanındaki 429 rate-limit hatalarını
+    üstel geri-çekilme + jitter ile yönetir.
+    """
+    for attempt in range(max_retries):
+        try:
+            return llm.invoke(messages)
+        except Exception as exc:
+            err_str = str(exc).lower()
+            is_rate_limit = (
+                "429" in err_str
+                or "resource_exhausted" in err_str
+                or "quota" in err_str
+                or "rate" in err_str
+            )
+            if is_rate_limit and attempt < max_retries - 1:
+                wait = (2 ** attempt) + random.uniform(0.5, 1.5)
+                logger.warning(
+                    "Gemini rate-limit (deneme %d/%d). %.1f sn bekleniyor…",
+                    attempt + 1, max_retries, wait,
+                )
+                time.sleep(wait)
+            else:
+                raise
+
+
+# ── Context builder ───────────────────────────────────────────────
 def build_context(chunks: List[Dict]) -> str:
-    parts = []
-    for i, chunk in enumerate(chunks, 1):
-        parts.append(
-            f"[Kaynak {i} – Sayfa {chunk['page']} ({chunk['filename']})]:\n{chunk['text']}"
-        )
+    parts = [
+        f"[Kaynak {i} – Sayfa {c['page']} ({c['filename']})]:\n{c['text']}"
+        for i, c in enumerate(chunks, 1)
+    ]
     return "\n\n---\n\n".join(parts)
 
 
-def generate_answer(question: str, doc_id: Optional[str], top_k: int = 5) -> Dict:
-    """
-    Basit tek-seferlik RAG cevabı (geçmiş sayfası & query endpoint'i için).
-    """
+# ── Single-shot RAG (query & history endpoints) ───────────────────
+def generate_answer(
+    question: str, doc_id: Optional[str], top_k: int = 5
+) -> Dict:
     chunks = search_similar_chunks(query=question, doc_id=doc_id, top_k=top_k)
 
     if not chunks:
@@ -51,7 +86,8 @@ def generate_answer(question: str, doc_id: Optional[str], top_k: int = 5) -> Dic
 
     system_prompt = (
         "Sen bir belge analiz asistanısın. "
-        "Kullanıcının sorularını yalnızca sağlanan belge bağlamına dayanarak Türkçe olarak yanıtlayacaksın.\n\n"
+        "Kullanıcının sorularını yalnızca sağlanan belge bağlamına dayanarak "
+        "Türkçe olarak yanıtlayacaksın.\n\n"
         "Kurallar:\n"
         "- Yalnızca verilen bağlamdaki bilgileri kullan\n"
         "- Bağlamda olmayan bir bilgiyi uydurmaya çalışma\n"
@@ -59,13 +95,16 @@ def generate_answer(question: str, doc_id: Optional[str], top_k: int = 5) -> Dic
         "- Cevaplarını net, anlaşılır ve kapsamlı tut\n"
         "- Mümkünse hangi sayfadan bilgi aldığını belirt"
     )
+    user_prompt = (
+        f"Belge Bağlamı:\n{context}\n\n"
+        f"Soru: {question}\n\n"
+        "Lütfen yukarıdaki bağlama dayanarak soruyu yanıtla."
+    )
 
-    user_prompt = f"Belge Bağlamı:\n{context}\n\nSoru: {question}\n\nLütfen yukarıdaki bağlama dayanarak soruyu yanıtla."
-
-    response = llm.invoke([
-        SystemMessage(content=system_prompt),
-        HumanMessage(content=user_prompt),
-    ])
+    response = _invoke_with_retry(
+        llm,
+        [SystemMessage(content=system_prompt), HumanMessage(content=user_prompt)],
+    )
 
     return {
         "answer": response.content,
@@ -74,13 +113,35 @@ def generate_answer(question: str, doc_id: Optional[str], top_k: int = 5) -> Dic
     }
 
 
-def get_conversational_chain(session_id: str, doc_id: Optional[str]) -> ConversationalRetrievalChain:
-    """
-    ConversationalRetrievalChain: oturum bazlı konuşma geçmişini korur.
-    """
-    embeddings = OpenAIEmbeddings(
-        model="text-embedding-3-small",
-        openai_api_key=OPENAI_API_KEY,
+# ── Conversational chain ─────────────────────────────────────────
+def _build_chat_prompt():
+    from langchain.prompts import PromptTemplate
+
+    template = """Sen bir belge analiz asistanısın. Yalnızca aşağıdaki belge \
+bağlamına ve konuşma geçmişine dayanarak soruyu Türkçe olarak yanıtla.
+
+Kurallar:
+- Yalnızca verilen bağlamdaki bilgileri kullan
+- Bağlamda olmayan bir bilgiyi uydurmaya çalışma
+- Eğer cevap bağlamda yoksa, bunu açıkça belirt
+- Cevabın açık, anlaşılır ve kapsamlı olsun
+- Mümkünse kaynağın sayfa numarasını belirt
+
+Bağlam:
+{context}
+
+Soru: {question}
+
+Cevap:"""
+    return PromptTemplate(input_variables=["context", "question"], template=template)
+
+
+def get_conversational_chain(
+    session_id: str, doc_id: Optional[str]
+) -> ConversationalRetrievalChain:
+    embeddings = GoogleGenerativeAIEmbeddings(
+        model="models/text-embedding-004",
+        google_api_key=GOOGLE_API_KEY,
     )
 
     vectorstore = Chroma(
@@ -104,7 +165,6 @@ def get_conversational_chain(session_id: str, doc_id: Optional[str]) -> Conversa
         )
 
     memory = _session_memories[session_id]
-
     llm = get_llm()
 
     chain = ConversationalRetrievalChain.from_llm(
@@ -113,34 +173,10 @@ def get_conversational_chain(session_id: str, doc_id: Optional[str]) -> Conversa
         memory=memory,
         return_source_documents=True,
         verbose=False,
-        combine_docs_chain_kwargs={
-            "prompt": _build_chat_prompt(),
-        },
+        combine_docs_chain_kwargs={"prompt": _build_chat_prompt()},
     )
 
     return chain
-
-
-def _build_chat_prompt():
-    from langchain.prompts import PromptTemplate
-
-    template = """Sen bir belge analiz asistanısın. Yalnızca aşağıdaki belge bağlamına ve konuşma geçmişine dayanarak soruyu Türkçe olarak yanıtla.
-
-Kurallar:
-- Yalnızca verilen bağlamdaki bilgileri kullan
-- Bağlamda olmayan bir bilgiyi uydurmaya çalışma
-- Eğer cevap bağlamda yoksa, bunu açıkça belirt
-- Cevabın açık, anlaşılır ve kapsamlı olsun
-- Mümkünse kaynağın sayfa numarasını belirt
-
-Bağlam:
-{context}
-
-Soru: {question}
-
-Cevap:"""
-
-    return PromptTemplate(input_variables=["context", "question"], template=template)
 
 
 def clear_session(session_id: str):
@@ -154,11 +190,24 @@ def chat_with_documents(
     doc_id: Optional[str] = None,
 ) -> Dict:
     """
-    ConversationalRetrievalChain ile konuşma geçmişini koruyarak cevap üretir.
+    Konuşma geçmişini koruyarak Gemini 1.5 Flash ile RAG cevabı üretir.
     """
     chain = get_conversational_chain(session_id=session_id, doc_id=doc_id)
 
-    result = chain.invoke({"question": question})
+    try:
+        result = chain.invoke({"question": question})
+    except Exception as exc:
+        err_str = str(exc).lower()
+        is_rate_limit = (
+            "429" in err_str
+            or "resource_exhausted" in err_str
+            or "quota" in err_str
+        )
+        if is_rate_limit:
+            raise RuntimeError(
+                "Gemini API rate limiti aşıldı. Lütfen birkaç saniye bekleyip tekrar deneyin."
+            ) from exc
+        raise
 
     answer = result.get("answer", "")
     source_docs = result.get("source_documents", [])
@@ -170,13 +219,15 @@ def chat_with_documents(
         key = (meta.get("document_id", ""), meta.get("chunk_index", 0))
         if key not in seen:
             seen.add(key)
-            sources.append({
-                "text": doc.page_content,
-                "page": meta.get("page", 0),
-                "score": 0.0,
-                "document_id": meta.get("document_id", ""),
-                "filename": meta.get("filename", ""),
-            })
+            sources.append(
+                {
+                    "text": doc.page_content,
+                    "page": meta.get("page", 0),
+                    "score": 0.0,
+                    "document_id": meta.get("document_id", ""),
+                    "filename": meta.get("filename", ""),
+                }
+            )
 
     return {
         "answer": answer,
