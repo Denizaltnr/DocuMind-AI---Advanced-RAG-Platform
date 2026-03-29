@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY")
 
 # Priority 1: User-provided OpenAI API key (standard OpenAI)
-_OPENAI_API_KEY  = os.environ.get("OPENAI_API_KEY", "")
+_OPENAI_API_KEY  = os.environ.get("OPENAI_API_KEY2", "") or os.environ.get("OPENAI_API_KEY", "")
 _OPENAI_BASE_URL = "https://api.openai.com/v1"
 
 # Priority 2: Replit AI integrations (fallback if no user key)
