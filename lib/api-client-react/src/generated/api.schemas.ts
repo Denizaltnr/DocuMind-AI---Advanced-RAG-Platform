@@ -46,6 +46,26 @@ export interface QueryResponse {
   historyId: string;
 }
 
+export interface ChatRequest {
+  question: string;
+  documentId?: string;
+  /** Conversation session ID for maintaining context */
+  sessionId?: string;
+  topK?: number;
+}
+
+export interface ChatResponse {
+  answer: string;
+  sources: SourceChunk[];
+  sessionId: string;
+  question: string;
+  historyId: string;
+}
+
+export interface ClearSessionRequest {
+  sessionId: string;
+}
+
 export interface HistoryItem {
   id: string;
   question: string;

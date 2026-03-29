@@ -68,7 +68,7 @@ paths:
     post:
       operationId: queryDocument
       tags: [query]
-      summary: Query documents using RAG
+      summary: Query documents using RAG (single-turn)
       requestBody:
         required: true
         content:
@@ -82,6 +82,44 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/QueryResponse"
+
+  /chat:
+    post:
+      operationId: chatWithDocuments
+      tags: [query]
+      summary: Conversational RAG chat (multi-turn with memory)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChatRequest"
+      responses:
+        "200":
+          description: Chat response with conversation memory
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChatResponse"
+
+  /chat/clear-session:
+    post:
+      operationId: clearChatSession
+      tags: [query]
+      summary: Clear conversation memory for a session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ClearSessionRequest"
+      responses:
+        "200":
+          description: Session cleared
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeleteResult"
 
   /history:
     get:
@@ -209,6 +247,52 @@ components:
         - score
         - documentId
         - filename
+
+    ChatRequest:
+      type: object
+      properties:
+        question:
+          type: string
+        documentId:
+          type: string
+        sessionId:
+          type: string
+          description: Conversation session ID for maintaining context
+        topK:
+          type: integer
+          default: 5
+      required:
+        - question
+
+    ChatResponse:
+      type: object
+      properties:
+        answer:
+          type: string
+        sources:
+          type: array
+          items:
+            $ref: "#/components/schemas/SourceChunk"
+        sessionId:
+          type: string
+        question:
+          type: string
+        historyId:
+          type: string
+      required:
+        - answer
+        - sources
+        - sessionId
+        - question
+        - historyId
+
+    ClearSessionRequest:
+      type: object
+      properties:
+        sessionId:
+          type: string
+      required:
+        - sessionId
 
     HistoryItem:
       type: object

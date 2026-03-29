@@ -17,6 +17,9 @@ import type {
 } from "@tanstack/react-query";
 
 import type {
+  ChatRequest,
+  ChatResponse,
+  ClearSessionRequest,
   DeleteResult,
   Document,
   HealthStatus,
@@ -270,7 +273,7 @@ export const useDeleteDocument = <
 };
 
 /**
- * @summary Query documents using RAG
+ * @summary Query documents using RAG (single-turn)
  */
 export const getQueryDocumentUrl = () => {
   return `/api/query`;
@@ -333,7 +336,7 @@ export type QueryDocumentMutationBody = BodyType<QueryRequest>;
 export type QueryDocumentMutationError = ErrorType<unknown>;
 
 /**
- * @summary Query documents using RAG
+ * @summary Query documents using RAG (single-turn)
  */
 export const useQueryDocument = <
   TError = ErrorType<unknown>,
@@ -353,6 +356,178 @@ export const useQueryDocument = <
   TContext
 > => {
   return useMutation(getQueryDocumentMutationOptions(options));
+};
+
+/**
+ * @summary Conversational RAG chat (multi-turn with memory)
+ */
+export const getChatWithDocumentsUrl = () => {
+  return `/api/chat`;
+};
+
+export const chatWithDocuments = async (
+  chatRequest: ChatRequest,
+  options?: RequestInit,
+): Promise<ChatResponse> => {
+  return customFetch<ChatResponse>(getChatWithDocumentsUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(chatRequest),
+  });
+};
+
+export const getChatWithDocumentsMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof chatWithDocuments>>,
+    TError,
+    { data: BodyType<ChatRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof chatWithDocuments>>,
+  TError,
+  { data: BodyType<ChatRequest> },
+  TContext
+> => {
+  const mutationKey = ["chatWithDocuments"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof chatWithDocuments>>,
+    { data: BodyType<ChatRequest> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return chatWithDocuments(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ChatWithDocumentsMutationResult = NonNullable<
+  Awaited<ReturnType<typeof chatWithDocuments>>
+>;
+export type ChatWithDocumentsMutationBody = BodyType<ChatRequest>;
+export type ChatWithDocumentsMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Conversational RAG chat (multi-turn with memory)
+ */
+export const useChatWithDocuments = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof chatWithDocuments>>,
+    TError,
+    { data: BodyType<ChatRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof chatWithDocuments>>,
+  TError,
+  { data: BodyType<ChatRequest> },
+  TContext
+> => {
+  return useMutation(getChatWithDocumentsMutationOptions(options));
+};
+
+/**
+ * @summary Clear conversation memory for a session
+ */
+export const getClearChatSessionUrl = () => {
+  return `/api/chat/clear-session`;
+};
+
+export const clearChatSession = async (
+  clearSessionRequest: ClearSessionRequest,
+  options?: RequestInit,
+): Promise<DeleteResult> => {
+  return customFetch<DeleteResult>(getClearChatSessionUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(clearSessionRequest),
+  });
+};
+
+export const getClearChatSessionMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof clearChatSession>>,
+    TError,
+    { data: BodyType<ClearSessionRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof clearChatSession>>,
+  TError,
+  { data: BodyType<ClearSessionRequest> },
+  TContext
+> => {
+  const mutationKey = ["clearChatSession"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof clearChatSession>>,
+    { data: BodyType<ClearSessionRequest> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return clearChatSession(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ClearChatSessionMutationResult = NonNullable<
+  Awaited<ReturnType<typeof clearChatSession>>
+>;
+export type ClearChatSessionMutationBody = BodyType<ClearSessionRequest>;
+export type ClearChatSessionMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Clear conversation memory for a session
+ */
+export const useClearChatSession = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof clearChatSession>>,
+    TError,
+    { data: BodyType<ClearSessionRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof clearChatSession>>,
+  TError,
+  { data: BodyType<ClearSessionRequest> },
+  TContext
+> => {
+  return useMutation(getClearChatSessionMutationOptions(options));
 };
 
 /**

@@ -1,38 +1,45 @@
 import fitz
 from typing import List, Dict
+from langchain.text_splitter import RecursiveCharacterTextSplitter
 
 
-def extract_text_chunks(file_path: str, chunk_size: int = 1000, chunk_overlap: int = 200) -> List[Dict]:
+def extract_text_chunks(
+    file_path: str,
+    chunk_size: int = 1000,
+    chunk_overlap: int = 200
+) -> List[Dict]:
+    """
+    PDF dosyasından metin çıkarır ve LangChain RecursiveCharacterTextSplitter
+    kullanarak anlamlı parçalara böler.
+    """
     doc = fitz.open(file_path)
-    chunks = []
-    full_text_by_page = []
+    pages_text: List[tuple[int, str]] = []
 
     for page_num in range(len(doc)):
         page = doc[page_num]
-        text = page.get_text()
-        full_text_by_page.append((page_num + 1, text))
+        text = page.get_text().strip()
+        if text:
+            pages_text.append((page_num + 1, text))
 
     doc.close()
 
-    for page_num, text in full_text_by_page:
-        text = text.strip()
-        if not text:
-            continue
+    splitter = RecursiveCharacterTextSplitter(
+        chunk_size=chunk_size,
+        chunk_overlap=chunk_overlap,
+        length_function=len,
+        separators=["\n\n", "\n", ".", "!", "?", ",", " ", ""],
+    )
 
-        start = 0
-        while start < len(text):
-            end = min(start + chunk_size, len(text))
-            chunk_text = text[start:end].strip()
+    chunks: List[Dict] = []
+    for page_num, text in pages_text:
+        page_chunks = splitter.split_text(text)
+        for chunk_text in page_chunks:
+            chunk_text = chunk_text.strip()
             if chunk_text:
                 chunks.append({
                     "text": chunk_text,
                     "page": page_num,
-                    "start": start,
-                    "end": end
                 })
-            if end == len(text):
-                break
-            start = end - chunk_overlap
 
     return chunks
 

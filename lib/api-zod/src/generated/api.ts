@@ -41,7 +41,7 @@ export const DeleteDocumentResponse = zod.object({
 });
 
 /**
- * @summary Query documents using RAG
+ * @summary Query documents using RAG (single-turn)
  */
 export const queryDocumentBodyTopKDefault = 5;
 
@@ -68,6 +68,49 @@ export const QueryDocumentResponse = zod.object({
   documentId: zod.string().optional(),
   question: zod.string(),
   historyId: zod.string(),
+});
+
+/**
+ * @summary Conversational RAG chat (multi-turn with memory)
+ */
+export const chatWithDocumentsBodyTopKDefault = 5;
+
+export const ChatWithDocumentsBody = zod.object({
+  question: zod.string(),
+  documentId: zod.string().optional(),
+  sessionId: zod
+    .string()
+    .optional()
+    .describe("Conversation session ID for maintaining context"),
+  topK: zod.number().default(chatWithDocumentsBodyTopKDefault),
+});
+
+export const ChatWithDocumentsResponse = zod.object({
+  answer: zod.string(),
+  sources: zod.array(
+    zod.object({
+      text: zod.string(),
+      page: zod.number(),
+      score: zod.number(),
+      documentId: zod.string(),
+      filename: zod.string(),
+    }),
+  ),
+  sessionId: zod.string(),
+  question: zod.string(),
+  historyId: zod.string(),
+});
+
+/**
+ * @summary Clear conversation memory for a session
+ */
+export const ClearChatSessionBody = zod.object({
+  sessionId: zod.string(),
+});
+
+export const ClearChatSessionResponse = zod.object({
+  success: zod.boolean(),
+  message: zod.string(),
 });
 
 /**
