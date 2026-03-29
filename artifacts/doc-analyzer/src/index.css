@@ -1,136 +1,175 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Outfit:wght@500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,300;0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700;1,14..32,400&display=swap');
 @import "tailwindcss";
 @import "tw-animate-css";
 @plugin "@tailwindcss/typography";
 
 @custom-variant dark (&:is(.dark *));
 
+/* ── Design Tokens ─────────────────────────────────────────── */
 @theme inline {
-  --color-background: hsl(var(--background));
-  --color-foreground: hsl(var(--foreground));
-  --color-border: hsl(var(--border));
-  --color-input: hsl(var(--input));
-  --color-ring: hsl(var(--ring));
+  /* Semantic colors */
+  --color-background:          hsl(var(--background));
+  --color-foreground:          hsl(var(--foreground));
+  --color-border:              hsl(var(--border));
+  --color-input:               hsl(var(--input));
+  --color-ring:                hsl(var(--ring));
 
-  --color-card: hsl(var(--card));
-  --color-card-foreground: hsl(var(--card-foreground));
-  --color-card-border: hsl(var(--card-border));
+  --color-card:                hsl(var(--card));
+  --color-card-foreground:     hsl(var(--card-foreground));
 
-  --color-popover: hsl(var(--popover));
-  --color-popover-foreground: hsl(var(--popover-foreground));
-  --color-popover-border: hsl(var(--popover-border));
+  --color-popover:             hsl(var(--popover));
+  --color-popover-foreground:  hsl(var(--popover-foreground));
 
-  --color-primary: hsl(var(--primary));
-  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-primary:             hsl(var(--primary));
+  --color-primary-foreground:  hsl(var(--primary-foreground));
 
-  --color-secondary: hsl(var(--secondary));
-  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-secondary:           hsl(var(--secondary));
+  --color-secondary-foreground:hsl(var(--secondary-foreground));
 
-  --color-muted: hsl(var(--muted));
-  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-muted:               hsl(var(--muted));
+  --color-muted-foreground:    hsl(var(--muted-foreground));
 
-  --color-accent: hsl(var(--accent));
-  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-accent:              hsl(var(--accent));
+  --color-accent-foreground:   hsl(var(--accent-foreground));
 
-  --color-destructive: hsl(var(--destructive));
+  --color-destructive:         hsl(var(--destructive));
   --color-destructive-foreground: hsl(var(--destructive-foreground));
 
-  --font-sans: 'Inter', sans-serif;
-  --font-display: 'Outfit', sans-serif;
+  --color-success:             hsl(var(--success));
+  --color-success-foreground:  hsl(var(--success-foreground));
 
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
+  /* Typography */
+  --font-sans:    'Inter', system-ui, -apple-system, sans-serif;
+  --font-display: 'Inter', system-ui, -apple-system, sans-serif;
+
+  /* Radii — rounded-2xl everywhere */
+  --radius-sm:  0.375rem;   /* 6px  */
+  --radius-md:  0.75rem;    /* 12px */
+  --radius-lg:  1rem;       /* 16px */
+  --radius-xl:  1.5rem;     /* 24px */
+  --radius:     1rem;
 }
 
+/* ── Light Mode Palette ────────────────────────────────────── */
 :root {
-  --background: 224 71% 4%;
-  --foreground: 213 31% 91%;
+  /* #F9FAFB → hsl(210 20% 98%) */
+  --background:               210 20% 98%;
+  /* #111827 → hsl(221 39% 11%) */
+  --foreground:               221 39% 11%;
 
-  --card: 224 71% 6%;
-  --card-foreground: 213 31% 91%;
-  --card-border: 216 34% 17%;
+  /* Cards = pure white */
+  --card:                     0 0% 100%;
+  --card-foreground:          221 39% 11%;
 
-  --popover: 222 47% 8%;
-  --popover-foreground: 213 31% 91%;
-  --popover-border: 216 34% 17%;
+  --popover:                  0 0% 100%;
+  --popover-foreground:       221 39% 11%;
 
-  --primary: 217 91% 60%;
-  --primary-foreground: 0 0% 100%;
+  /* #1D4ED8 → hsl(224 76% 48%) */
+  --primary:                  224 76% 48%;
+  --primary-foreground:       0 0% 100%;
 
-  --secondary: 222 47% 11%;
-  --secondary-foreground: 210 40% 98%;
+  /* Subtle fills */
+  --secondary:                210 20% 95%;
+  --secondary-foreground:     221 39% 11%;
 
-  --muted: 223 47% 9%;
-  --muted-foreground: 215 20.2% 55%;
+  /* #F3F4F6 */
+  --muted:                    220 14% 96%;
+  /* #6B7280 */
+  --muted-foreground:         220 9% 46%;
 
-  --accent: 216 34% 15%;
-  --accent-foreground: 210 40% 98%;
+  /* Very light blue tint for hover states */
+  --accent:                   214 100% 97%;
+  --accent-foreground:        224 76% 48%;
 
-  --destructive: 359 51% 48%;
-  --destructive-foreground: 210 40% 98%;
+  /* #E5E7EB */
+  --border:                   220 13% 91%;
+  --input:                    220 13% 91%;
+  --ring:                     224 76% 48%;
 
-  --border: 216 34% 14%;
-  --input: 216 34% 14%;
-  --ring: 217 91% 60%;
+  --destructive:              0 72% 51%;
+  --destructive-foreground:   0 0% 100%;
 
-  --radius: 0.75rem;
+  --success:                  142 71% 45%;
+  --success-foreground:       0 0% 100%;
+
+  --radius: 1rem;
 }
 
+/* ── Base Layer ────────────────────────────────────────────── */
 @layer base {
   * {
     @apply border-border;
+    box-sizing: border-box;
   }
   html, body, #root {
-    @apply h-full;
+    height: 100%;
   }
   body {
-    @apply bg-background text-foreground font-sans antialiased overflow-hidden;
-    selection-color: hsl(var(--primary) / 0.3);
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+    font-family: var(--font-sans);
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overflow: hidden;
   }
-  h1, h2, h3, h4, h5, h6 {
-    font-family: var(--font-display);
-    @apply font-bold tracking-tight text-white;
+
+  /* Inter typographic scale */
+  h1 { @apply text-3xl font-semibold tracking-tight text-foreground; }
+  h2 { @apply text-2xl font-semibold tracking-tight text-foreground; }
+  h3 { @apply text-xl  font-semibold tracking-tight text-foreground; }
+  h4 { @apply text-base font-semibold text-foreground; }
+  p  { @apply text-sm font-normal leading-relaxed; }
+
+  /* Selection */
+  ::selection {
+    background-color: hsl(var(--primary) / 0.15);
+    color: hsl(var(--primary));
   }
 }
 
-/* Thin scrollbar */
-::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
-}
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-::-webkit-scrollbar-thumb {
-  background: hsl(var(--border));
-  border-radius: 9999px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: hsl(var(--muted-foreground) / 0.5);
-}
+/* ── Scrollbar — thin & elegant ───────────────────────────── */
+::-webkit-scrollbar       { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 9999px; }
+::-webkit-scrollbar-thumb:hover { background: hsl(var(--muted-foreground) / 0.4); }
 
-/* Textarea reset */
-textarea {
-  field-sizing: content;
-}
-
-/* Prose overrides for dark bg */
+/* ── Prose light overrides ─────────────────────────────────── */
 .prose {
-  --tw-prose-body: hsl(213 31% 85%);
-  --tw-prose-headings: white;
-  --tw-prose-links: hsl(var(--primary));
-  --tw-prose-bold: white;
-  --tw-prose-counters: hsl(215 20.2% 55%);
-  --tw-prose-bullets: hsl(215 20.2% 45%);
-  --tw-prose-hr: hsl(var(--border));
-  --tw-prose-quotes: hsl(215 20.2% 65%);
+  --tw-prose-body:          hsl(221 39% 20%);
+  --tw-prose-headings:      hsl(221 39% 11%);
+  --tw-prose-links:         hsl(224 76% 48%);
+  --tw-prose-bold:          hsl(221 39% 11%);
+  --tw-prose-counters:      hsl(220 9% 46%);
+  --tw-prose-bullets:       hsl(220 9% 60%);
+  --tw-prose-hr:            hsl(var(--border));
+  --tw-prose-quotes:        hsl(220 9% 46%);
   --tw-prose-quote-borders: hsl(var(--primary) / 0.4);
-  --tw-prose-captions: hsl(215 20.2% 55%);
-  --tw-prose-code: hsl(180 50% 75%);
-  --tw-prose-pre-code: hsl(213 31% 85%);
-  --tw-prose-pre-bg: hsl(224 71% 3%);
-  --tw-prose-th-borders: hsl(var(--border));
-  --tw-prose-td-borders: hsl(var(--border));
+  --tw-prose-captions:      hsl(220 9% 46%);
+  --tw-prose-code:          hsl(224 76% 40%);
+  --tw-prose-pre-code:      hsl(221 39% 20%);
+  --tw-prose-pre-bg:        hsl(220 14% 96%);
+  --tw-prose-th-borders:    hsl(var(--border));
+  --tw-prose-td-borders:    hsl(var(--border));
+}
+
+/* ── Utility classes ───────────────────────────────────────── */
+
+/* Glass / frosted card */
+.surface {
+  background-color: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius-xl);
+}
+
+/* Subtle inset shadow for inputs */
+.input-ring:focus-within {
+  outline: none;
+  box-shadow: 0 0 0 3px hsl(var(--primary) / 0.12);
+  border-color: hsl(var(--primary) / 0.5);
+}
+
+/* Primary button glow */
+.btn-glow:hover {
+  box-shadow: 0 4px 20px hsl(var(--primary) / 0.25);
 }
