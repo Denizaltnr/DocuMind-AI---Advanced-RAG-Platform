@@ -11,7 +11,7 @@ GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY")
 
 def get_embedding_function():
     return GoogleGenerativeAIEmbeddings(
-        model="models/text-embedding-004",
+        model="models/gemini-embedding-001",
         google_api_key=GOOGLE_API_KEY,
     )
 

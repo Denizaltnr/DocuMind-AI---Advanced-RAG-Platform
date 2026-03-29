@@ -21,10 +21,9 @@ _session_memories: Dict[str, ConversationBufferWindowMemory] = {}
 # ── LLM factory ──────────────────────────────────────────────────
 def get_llm(temperature: float = 0.3) -> ChatGoogleGenerativeAI:
     return ChatGoogleGenerativeAI(
-        model="gemini-1.5-flash",
+        model="gemini-2.5-flash",
         temperature=temperature,
         google_api_key=GOOGLE_API_KEY,
-        convert_system_message_to_human=True,
     )
 
 
@@ -140,7 +139,7 @@ def get_conversational_chain(
     session_id: str, doc_id: Optional[str]
 ) -> ConversationalRetrievalChain:
     embeddings = GoogleGenerativeAIEmbeddings(
-        model="models/text-embedding-004",
+        model="models/gemini-embedding-001",
         google_api_key=GOOGLE_API_KEY,
     )
 

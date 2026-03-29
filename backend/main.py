@@ -38,7 +38,7 @@ app.include_router(history.router,   prefix="/history",   tags=["history"])
 def health():
     return {
         "status": "ok",
-        "model": "gemini-1.5-flash",
-        "embedding": "models/text-embedding-004",
+        "model": "gemini-2.5-flash",
+        "embedding": "models/gemini-embedding-001",
         "google_api_configured": bool(GOOGLE_API_KEY),
     }
