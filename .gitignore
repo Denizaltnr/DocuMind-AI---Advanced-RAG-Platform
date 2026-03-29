@@ -60,13 +60,15 @@ env/
 *.egg-info/
 .env
 
-# Backend data (local / secrets)
+# Backend data (local / runtime - do not commit)
 backend/data/chroma/
 backend/uploads/
 backend/data/history.json
+backend/data/documents.json
 
 # ChromaDB
 chroma.sqlite3
+*.sqlite3
 
 # pnpm
 .pnpm-store/

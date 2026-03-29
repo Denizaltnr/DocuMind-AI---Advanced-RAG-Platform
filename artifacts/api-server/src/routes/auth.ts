@@ -7,7 +7,12 @@ import { logger } from "../lib/logger";
 const router = Router();
 
 const GOOGLE_CLIENT_ID = process.env["GOOGLE_CLIENT_ID"] ?? "";
-const SESSION_SECRET = process.env["SESSION_SECRET"] ?? "change-me-in-production-32chars!";
+
+const _rawSecret = process.env["SESSION_SECRET"];
+if (!_rawSecret) {
+  throw new Error("SESSION_SECRET environment variable is required but not set.");
+}
+const SESSION_SECRET = _rawSecret;
 const JWT_EXPIRE_SECONDS = 60 * 60 * 24 * 7;
 
 const jwtSecret = new TextEncoder().encode(SESSION_SECRET);
