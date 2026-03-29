@@ -3,6 +3,7 @@ import cors from "cors";
 import pinoHttp from "pino-http";
 import http from "node:http";
 import router from "./routes";
+import authRouter from "./routes/auth";
 import { logger } from "./lib/logger";
 
 const app: Express = express();
@@ -73,7 +74,12 @@ function makePythonProxy(targetPathPrefix: string) {
 }
 
 app.use("/api/py", makePythonProxy(""));
+
+// Auth: Node.js handles Google token verification directly (no Python needed).
+// Other /api/auth/* routes fall through to the Python proxy below.
+app.use("/api/auth", authRouter);
 app.use("/api/auth", makePythonProxy("/auth"));
+
 app.use("/api/documents", makePythonProxy("/documents"));
 app.use("/api/query", makePythonProxy("/query"));
 app.use("/api/chat", makePythonProxy("/chat"));
