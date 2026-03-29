@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "RAG Belge Analiz Platformu"
+version = "1.0.0"
+id = "artifacts/doc-analyzer"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 18411
+
+[services.development]
+run = "pnpm --filter @workspace/doc-analyzer run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/doc-analyzer", "run", "build" ]
+publicDir = "artifacts/doc-analyzer/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "18411"
+BASE_PATH = "/"

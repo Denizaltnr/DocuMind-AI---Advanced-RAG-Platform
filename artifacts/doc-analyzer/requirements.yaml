@@ -1,0 +1,15 @@
+packages:
+  "framer-motion": "For page transitions and smooth UI animations"
+  "react-dropzone": "For drag and drop PDF file uploads"
+  "date-fns": "For human-readable date formatting"
+  "clsx": "Utility for constructing className strings conditionally"
+  "tailwind-merge": "Utility for merging tailwind classes without style conflicts"
+
+images:
+  - path: "artifacts/doc-analyzer/public/images/empty-state.png"
+    description: "Abstract 3D geometric shapes in deep blue and indigo floating in dark space, modern SaaS aesthetic, elegant and minimalistic"
+    aspect_ratio: "16:9"
+
+notes:
+  - App relies on generated React Query hooks from @workspace/api-client-react
+  - Upload endpoint /api/py/upload is implemented as a custom hook using standard fetch

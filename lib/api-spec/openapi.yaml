@@ -1,15 +1,20 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: RAG Tabanlı Akıllı Belge Analiz Platformu API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: documents
+    description: Document management
+  - name: query
+    description: RAG query operations
+  - name: history
+    description: Query history
 paths:
   /healthz:
     get:
@@ -24,6 +29,86 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /documents:
+    get:
+      operationId: listDocuments
+      tags: [documents]
+      summary: List uploaded documents
+      responses:
+        "200":
+          description: List of documents
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Document"
+
+  /documents/{id}:
+    delete:
+      operationId: deleteDocument
+      tags: [documents]
+      summary: Delete a document
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Document deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeleteResult"
+
+  /query:
+    post:
+      operationId: queryDocument
+      tags: [query]
+      summary: Query documents using RAG
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/QueryRequest"
+      responses:
+        "200":
+          description: RAG answer
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QueryResponse"
+
+  /history:
+    get:
+      operationId: getHistory
+      tags: [history]
+      summary: Get query history
+      responses:
+        "200":
+          description: List of past queries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/HistoryItem"
+    delete:
+      operationId: clearHistory
+      tags: [history]
+      summary: Clear all query history
+      responses:
+        "200":
+          description: History cleared
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeleteResult"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +119,120 @@ components:
       required:
         - status
 
+    Document:
+      type: object
+      properties:
+        id:
+          type: string
+        filename:
+          type: string
+        uploadedAt:
+          type: string
+          format: date-time
+        pageCount:
+          type: integer
+        chunkCount:
+          type: integer
+        fileSize:
+          type: integer
+      required:
+        - id
+        - filename
+        - uploadedAt
+        - pageCount
+        - chunkCount
+        - fileSize
+
+    DeleteResult:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+      required:
+        - success
+        - message
+
+    QueryRequest:
+      type: object
+      properties:
+        question:
+          type: string
+        documentId:
+          type: string
+          description: Optional - if provided, query only this document
+        topK:
+          type: integer
+          default: 5
+      required:
+        - question
+
+    QueryResponse:
+      type: object
+      properties:
+        answer:
+          type: string
+        sources:
+          type: array
+          items:
+            $ref: "#/components/schemas/SourceChunk"
+        documentId:
+          type: string
+        question:
+          type: string
+        historyId:
+          type: string
+      required:
+        - answer
+        - sources
+        - question
+        - historyId
+
+    SourceChunk:
+      type: object
+      properties:
+        text:
+          type: string
+        page:
+          type: integer
+        score:
+          type: number
+          format: float
+        documentId:
+          type: string
+        filename:
+          type: string
+      required:
+        - text
+        - page
+        - score
+        - documentId
+        - filename
+
+    HistoryItem:
+      type: object
+      properties:
+        id:
+          type: string
+        question:
+          type: string
+        answer:
+          type: string
+        documentId:
+          type: string
+        documentName:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        sources:
+          type: array
+          items:
+            $ref: "#/components/schemas/SourceChunk"
+      required:
+        - id
+        - question
+        - answer
+        - createdAt
+        - sources
