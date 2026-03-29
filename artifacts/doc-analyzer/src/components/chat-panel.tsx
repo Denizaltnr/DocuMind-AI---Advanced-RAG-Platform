@@ -260,7 +260,7 @@ export function ChatPanel({
                 </motion.div>
               ))}
 
-              {/* AI yazıyor... — Notion style */}
+              {/* AI yazıyor — Skeleton loader */}
               {isSending && (
                 <motion.div
                   key="typing"
@@ -272,14 +272,14 @@ export function ChatPanel({
                   <div className="w-6 h-6 rounded-lg bg-accent border border-primary/20 flex items-center justify-center shrink-0 mt-0.5">
                     <Sparkles className="w-3 h-3 text-primary" />
                   </div>
-                  <div className="flex-1 pt-0.5">
-                    <div className="flex items-baseline gap-2 mb-1.5">
+                  <div className="flex-1 pt-0.5 min-w-0">
+                    <div className="flex items-baseline gap-2 mb-2.5">
                       <span className="text-xs font-semibold text-primary">DocuMind AI</span>
                     </div>
-                    <div className="flex items-center gap-1.5">
-                      <span className="w-1.5 h-1.5 rounded-full bg-primary animate-bounce [animation-delay:0ms]" />
-                      <span className="w-1.5 h-1.5 rounded-full bg-primary/70 animate-bounce [animation-delay:160ms]" />
-                      <span className="w-1.5 h-1.5 rounded-full bg-primary/40 animate-bounce [animation-delay:320ms]" />
+                    <div className="space-y-2">
+                      <div className="skeleton-line h-3 w-full rounded-full" />
+                      <div className="skeleton-line h-3 w-4/5 rounded-full" />
+                      <div className="skeleton-line h-3 w-2/3 rounded-full" />
                     </div>
                   </div>
                 </motion.div>
@@ -308,7 +308,9 @@ export function ChatPanel({
       {/* ── Input ────────────────────────────────────────── */}
       <div className="shrink-0 pt-3">
         <div className={cn(
-          "flex items-end gap-2 bg-white border rounded-2xl px-4 py-3 transition-all input-ring shadow-sm",
+          "flex items-end gap-2 bg-white border rounded-2xl px-4 py-3 shadow-sm",
+          "transition-all duration-200",
+          "focus-within:border-primary/50 focus-within:ring-2 focus-within:ring-primary/15 focus-within:shadow-md",
           isSending ? "border-primary/30" : "border-border"
         )}>
           <textarea
@@ -326,7 +328,13 @@ export function ChatPanel({
             onClick={() => onSend()}
             disabled={!question.trim() || isSending}
             aria-label="Gönder"
-            className="shrink-0 w-8 h-8 rounded-2xl bg-primary text-white flex items-center justify-center transition-all disabled:opacity-30 disabled:cursor-not-allowed hover:bg-primary/90 btn-glow"
+            className={cn(
+              "shrink-0 w-8 h-8 rounded-2xl bg-primary text-white flex items-center justify-center",
+              "transition-all duration-200 ease-out",
+              "hover:-translate-y-0.5 hover:shadow-lg hover:shadow-primary/30 hover:bg-primary/90",
+              "active:translate-y-0 active:shadow-md",
+              "disabled:opacity-30 disabled:cursor-not-allowed disabled:translate-y-0 disabled:shadow-none"
+            )}
           >
             {isSending
               ? <Loader2 className="w-3.5 h-3.5 animate-spin" />

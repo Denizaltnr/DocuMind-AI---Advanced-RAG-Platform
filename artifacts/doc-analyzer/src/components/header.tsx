@@ -42,9 +42,12 @@ export function Header() {
           onClick={() => fileRef.current?.click()}
           disabled={uploading}
           className={cn(
-            "flex items-center gap-2 px-4 py-2 rounded-2xl text-sm font-medium transition-all",
-            "bg-primary text-white hover:bg-primary/90 btn-glow",
-            "disabled:opacity-50 disabled:cursor-not-allowed"
+            "flex items-center gap-2 px-4 py-2 rounded-2xl text-sm font-medium",
+            "transition-all duration-200 ease-out",
+            "bg-primary text-white",
+            "hover:-translate-y-0.5 hover:shadow-lg hover:shadow-primary/30 hover:bg-primary/90",
+            "active:translate-y-0 active:shadow-md",
+            "disabled:opacity-50 disabled:cursor-not-allowed disabled:translate-y-0 disabled:shadow-none"
           )}
         >
           {uploading

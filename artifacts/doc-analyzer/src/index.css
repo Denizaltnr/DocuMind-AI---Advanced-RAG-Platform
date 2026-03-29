@@ -153,6 +153,31 @@
   --tw-prose-td-borders:    hsl(var(--border));
 }
 
+/* ── Skeleton shimmer animation ────────────────────────────── */
+@keyframes shimmer-slide {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+.skeleton-line {
+  background-color: hsl(var(--muted));
+  position: relative;
+  overflow: hidden;
+}
+
+.skeleton-line::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    hsl(var(--card) / 0.8) 50%,
+    transparent 100%
+  );
+  animation: shimmer-slide 1.4s ease-in-out infinite;
+}
+
 /* ── Utility classes ───────────────────────────────────────── */
 
 /* Glass / frosted card */
