@@ -18,17 +18,18 @@ if (Number.isNaN(port) || port <= 0) {
   throw new Error(`Invalid PORT value: "${rawPort}"`);
 }
 
-function findUvicorn(): string {
+function findPython(): string {
   const candidates = [
-    path.join(process.cwd(), ".pythonlibs", "bin", "uvicorn"),
-    "/home/runner/workspace/.pythonlibs/bin/uvicorn",
-    "/usr/local/bin/uvicorn",
-    "/usr/bin/uvicorn",
+    path.join(process.cwd(), ".pythonlibs", "bin", "python3"),
+    "/home/runner/workspace/.pythonlibs/bin/python3",
+    "/usr/local/bin/python3",
+    "/usr/bin/python3",
+    "python3",
   ];
   for (const p of candidates) {
-    if (fs.existsSync(p)) return p;
+    if (p === "python3" || fs.existsSync(p)) return p;
   }
-  return "uvicorn";
+  return "python3";
 }
 
 function installPythonDeps(backendDir: string) {
@@ -36,7 +37,8 @@ function installPythonDeps(backendDir: string) {
   if (!fs.existsSync(reqFile)) return;
   logger.info("Installing Python backend dependencies…");
   try {
-    execSync(`pip install -q -r ${reqFile}`, { stdio: "inherit" });
+    const pythonBin = findPython();
+    execSync(`${pythonBin} -m pip install -q -r ${reqFile}`, { stdio: "inherit" });
     logger.info("Python dependencies installed.");
   } catch (e) {
     logger.warn({ e }, "pip install failed — will try with existing packages");
@@ -54,19 +56,26 @@ function startPythonBackend() {
   // Always install deps so new requirements.txt entries are picked up on every deploy
   installPythonDeps(backendDir);
 
-  let uvicornBin = findUvicorn();
-  if (!uvicornBin || uvicornBin === "uvicorn") {
-    logger.error("uvicorn not found after pip install — aborting Python backend start");
-    return;
-  }
+  const pythonBin = findPython();
+  logger.info({ backendDir, pythonBin }, "Starting Python backend via python3 -u -m uvicorn");
 
-  logger.info({ backendDir, uvicornBin }, "Starting Python backend");
-
-  const proc = spawn(uvicornBin, ["main:app", "--host", "0.0.0.0", "--port", "8000"], {
-    cwd: backendDir,
-    stdio: "pipe",
-    env: { ...process.env },
-  });
+  // Use "python3 -u -m uvicorn" instead of the uvicorn binary.
+  // -u forces unbuffered stdout/stderr so logs reach us immediately.
+  // This also avoids shebang path issues with the uvicorn binary in production.
+  const proc = spawn(
+    pythonBin,
+    ["-u", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"],
+    {
+      cwd: backendDir,
+      stdio: "pipe",
+      env: {
+        ...process.env,
+        PYTHONUNBUFFERED: "1",
+        ANONYMIZED_TELEMETRY: "false",
+        CHROMA_TELEMETRY: "false",
+      },
+    },
+  );
 
   proc.stdout?.on("data", (d: Buffer) => {
     const line = d.toString().trim();
