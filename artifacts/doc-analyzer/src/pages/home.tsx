@@ -7,6 +7,10 @@ import { DocPanel } from "@/components/doc-panel";
 import { ChatPanel, type ChatMessage } from "@/components/chat-panel";
 import { RotateCcw, WifiOff, ServerCrash, AlertTriangle, Clock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { motion, AnimatePresence } from "framer-motion";
+
+const SIDEBAR_EXPANDED_W = 256;
+const SIDEBAR_COLLAPSED_W = 48;
 
 export default function Home() {
   const [question, setQuestion] = useState("");
@@ -14,6 +18,7 @@ export default function Home() {
   const [sessionId, setSessionId] = useState<string | undefined>();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isSending, setIsSending] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
 
   const { toast } = useToast();
   const { data: historyData } = useGetHistory();
@@ -94,37 +99,69 @@ export default function Home() {
 
   return (
     <div className="h-screen overflow-hidden flex flex-col bg-background">
-      {/* Fixed Header */}
-      <Header />
+      {/* Fixed Header — carries the sidebar toggle */}
+      <Header
+        sidebarOpen={sidebarOpen}
+        onToggleSidebar={() => setSidebarOpen(o => !o)}
+      />
 
-      {/* Content — below header (14 = h-14) */}
+      {/* Content area — below fixed header */}
       <div className="flex-1 overflow-hidden pt-14">
-        <div className="h-full max-w-5xl mx-auto px-6 py-6 flex gap-6">
+        <div className="h-full flex">
 
-          {/* ── Left: Document Panel (1/3) ───────────────── */}
-          <div className="w-64 shrink-0 flex flex-col">
-            {/* "New chat" mini bar */}
-            {messages.length > 0 && (
-              <button
-                onClick={() => resetSession()}
-                disabled={isSending}
-                className="flex items-center gap-2 w-full px-3 py-2 mb-4 rounded-2xl border border-border bg-white text-xs text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-40 transition-all font-normal"
+          {/* ── Animated Sidebar ──────────────────────────────── */}
+          <motion.div
+            animate={{ width: sidebarOpen ? SIDEBAR_EXPANDED_W : SIDEBAR_COLLAPSED_W }}
+            transition={{ duration: 0.28, ease: [0.4, 0, 0.2, 1] }}
+            className="shrink-0 flex flex-col overflow-hidden border-r border-border bg-background"
+            style={{ willChange: "width" }}
+          >
+            {/* Inner wrapper — fixed size so content doesn't reflow during animation */}
+            <div
+              className="flex flex-col h-full overflow-hidden"
+              style={{ width: SIDEBAR_EXPANDED_W }}
+            >
+              {/* "New chat" mini bar — only in expanded mode */}
+              <AnimatePresence>
+                {sidebarOpen && messages.length > 0 && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="px-4 pt-5 pb-0"
+                  >
+                    <button
+                      onClick={() => resetSession()}
+                      disabled={isSending}
+                      className="flex items-center gap-2 w-full px-3 py-2 mb-4 rounded-2xl border border-border bg-white text-xs text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-40 transition-all font-normal"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5 shrink-0" />
+                      Yeni Sohbet Başlat
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {/* DocPanel — fills remaining height, handles its own collapsed view */}
+              <div
+                className="flex-1 overflow-hidden"
+                style={{
+                  padding: sidebarOpen ? "20px 16px 16px" : "20px 0 16px",
+                  transition: "padding 0.28s cubic-bezier(0.4,0,0.2,1)",
+                }}
               >
-                <RotateCcw className="w-3.5 h-3.5" />
-                Yeni Sohbet Başlat
-              </button>
-            )}
-            <DocPanel
-              selectedDocId={selectedDocId}
-              onDocSelect={handleDocChange}
-            />
-          </div>
+                <DocPanel
+                  selectedDocId={selectedDocId}
+                  onDocSelect={handleDocChange}
+                  collapsed={!sidebarOpen}
+                />
+              </div>
+            </div>
+          </motion.div>
 
-          {/* Vertical divider */}
-          <div className="w-px bg-border shrink-0" />
-
-          {/* ── Right: Chat Panel (2/3) ──────────────────── */}
-          <div className="flex-1 min-w-0">
+          {/* ── Chat Panel — grows automatically ─────────────── */}
+          <div className="flex-1 min-w-0 overflow-hidden px-6 py-6">
             <ChatPanel
               messages={messages}
               isSending={isSending}

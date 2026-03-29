@@ -6,6 +6,7 @@ import {
   Trash2,
   CheckCircle2,
   Plus,
+  LayoutGrid,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -13,9 +14,10 @@ import { cn } from "@/lib/utils";
 interface DocPanelProps {
   selectedDocId: string | "all";
   onDocSelect: (id: string | "all") => void;
+  collapsed: boolean;
 }
 
-export function DocPanel({ selectedDocId, onDocSelect }: DocPanelProps) {
+export function DocPanel({ selectedDocId, onDocSelect, collapsed }: DocPanelProps) {
   const { data: documents, isLoading } = useListDocuments();
   const { mutate: deleteDoc } = useDeleteDocument();
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -36,6 +38,68 @@ export function DocPanel({ selectedDocId, onDocSelect }: DocPanelProps) {
 
   const docCount = documents?.length ?? 0;
 
+  /* ── Collapsed (icon-strip) mode ──────────────────────────────── */
+  if (collapsed) {
+    return (
+      <aside className="flex flex-col items-center h-full pt-1 gap-1.5 overflow-hidden w-full">
+        {/* "All docs" icon */}
+        <button
+          onClick={() => onDocSelect("all")}
+          title="Tüm Belgeler"
+          className={cn(
+            "w-9 h-9 rounded-xl flex items-center justify-center transition-all shrink-0",
+            selectedDocId === "all"
+              ? "bg-primary/10 text-primary"
+              : "text-muted-foreground hover:bg-muted hover:text-foreground"
+          )}
+        >
+          <LayoutGrid className="w-4 h-4" />
+        </button>
+
+        {/* Divider */}
+        <div className="w-5 h-px bg-border" />
+
+        {/* Document icons */}
+        <div className="flex flex-col items-center gap-1.5 overflow-y-auto flex-1 w-full pb-2">
+          {isLoading && (
+            <Loader2 className="w-3.5 h-3.5 animate-spin text-muted-foreground mt-2" />
+          )}
+          <AnimatePresence>
+            {documents?.map((doc) => {
+              const isSelected = selectedDocId === doc.id;
+              return (
+                <motion.button
+                  key={doc.id}
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.8 }}
+                  transition={{ duration: 0.15 }}
+                  onClick={() => onDocSelect(doc.id)}
+                  title={doc.filename}
+                  className={cn(
+                    "w-9 h-9 rounded-xl flex items-center justify-center transition-all shrink-0",
+                    isSelected
+                      ? "bg-primary text-white shadow-sm shadow-primary/20"
+                      : "bg-muted text-muted-foreground hover:bg-accent hover:text-foreground"
+                  )}
+                >
+                  <FileText className="w-4 h-4" />
+                </motion.button>
+              );
+            })}
+          </AnimatePresence>
+
+          {!isLoading && docCount === 0 && (
+            <div className="w-9 h-9 rounded-xl bg-muted/50 flex items-center justify-center">
+              <Plus className="w-3.5 h-3.5 text-muted-foreground/50" />
+            </div>
+          )}
+        </div>
+      </aside>
+    );
+  }
+
+  /* ── Expanded mode ─────────────────────────────────────────────── */
   return (
     <aside className="flex flex-col h-full overflow-hidden">
       {/* Section header */}
@@ -106,7 +170,6 @@ export function DocPanel({ selectedDocId, onDocSelect }: DocPanelProps) {
                   "relative h-24 flex items-center justify-center",
                   isSelected ? "bg-primary/5" : "bg-muted/60"
                 )}>
-                  {/* PDF visual mock */}
                   <div className="flex flex-col items-center gap-1">
                     <div className={cn(
                       "w-10 h-12 rounded-lg flex flex-col items-center justify-center relative shadow-sm",
@@ -119,7 +182,6 @@ export function DocPanel({ selectedDocId, onDocSelect }: DocPanelProps) {
                       )}>
                         {ext}
                       </span>
-                      {/* Dog-ear */}
                       <div className={cn(
                         "absolute top-0 right-0 w-2.5 h-2.5",
                         isSelected ? "border-l border-b border-primary/30 bg-white/20" : "border-l border-b border-border bg-muted"
@@ -127,14 +189,12 @@ export function DocPanel({ selectedDocId, onDocSelect }: DocPanelProps) {
                     </div>
                   </div>
 
-                  {/* Selected indicator */}
                   {isSelected && (
                     <div className="absolute top-2 right-2">
                       <CheckCircle2 className="w-4 h-4 text-primary" />
                     </div>
                   )}
 
-                  {/* Delete button */}
                   <button
                     onClick={(e) => handleDelete(doc.id, e)}
                     disabled={deletingId === doc.id}

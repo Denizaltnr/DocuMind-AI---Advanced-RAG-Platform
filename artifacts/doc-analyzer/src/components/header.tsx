@@ -1,14 +1,38 @@
 import { useState } from "react";
-import { Upload, User } from "lucide-react";
+import { Upload, User, PanelLeft } from "lucide-react";
 import { UploadModal } from "@/components/upload-modal";
 import { cn } from "@/lib/utils";
 
-export function Header() {
+interface HeaderProps {
+  sidebarOpen: boolean;
+  onToggleSidebar: () => void;
+}
+
+export function Header({ sidebarOpen, onToggleSidebar }: HeaderProps) {
   const [modalOpen, setModalOpen] = useState(false);
 
   return (
     <>
-      <header className="fixed top-0 left-0 right-0 z-40 h-14 flex items-center px-6 border-b border-border/60 bg-white/70 backdrop-blur-xl">
+      <header className="fixed top-0 left-0 right-0 z-40 h-14 flex items-center px-4 border-b border-border/60 bg-white/70 backdrop-blur-xl">
+
+        {/* Sidebar toggle */}
+        <button
+          onClick={onToggleSidebar}
+          title={sidebarOpen ? "Paneli gizle" : "Paneli göster"}
+          className={cn(
+            "mr-3 w-8 h-8 flex items-center justify-center rounded-xl transition-all duration-200",
+            "text-muted-foreground hover:text-foreground hover:bg-muted",
+            "active:scale-95"
+          )}
+        >
+          <PanelLeft
+            className={cn(
+              "w-4.5 h-4.5 transition-transform duration-300",
+              !sidebarOpen && "rotate-180"
+            )}
+          />
+        </button>
+
         {/* Logo */}
         <div className="flex items-center gap-2.5 flex-1">
           <div className="w-7 h-7 rounded-xl bg-primary flex items-center justify-center shadow-sm">
@@ -39,7 +63,6 @@ export function Header() {
             Belge Yükle
           </button>
 
-          {/* Avatar */}
           <div className="w-8 h-8 rounded-full bg-muted border border-border flex items-center justify-center cursor-pointer hover:bg-secondary transition-colors">
             <User className="w-4 h-4 text-muted-foreground" />
           </div>
