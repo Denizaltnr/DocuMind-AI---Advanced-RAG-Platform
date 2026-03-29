@@ -4,13 +4,18 @@ import random
 import logging
 from typing import List, Dict, Optional
 
-from langchain_openai import ChatOpenAI
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langchain.schema import HumanMessage, SystemMessage
 from langchain.chains import ConversationalRetrievalChain
 from langchain.memory import ConversationBufferWindowMemory
 from langchain_chroma import Chroma
 from services.embeddings import search_similar_chunks, CHROMA_PATH
+
+try:
+    from langchain_openai import ChatOpenAI
+    _OPENAI_AVAILABLE = True
+except ImportError:
+    _OPENAI_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
 
@@ -22,14 +27,16 @@ _session_memories: Dict[str, ConversationBufferWindowMemory] = {}
 
 
 # ── LLM factory ──────────────────────────────────────────────────
-def get_llm(temperature: float = 0.3) -> ChatOpenAI:
-    if OPENAI_BASE_URL:
+def get_llm(temperature: float = 0.3):
+    if _OPENAI_AVAILABLE and OPENAI_BASE_URL:
+        logger.info("Using OpenAI via Replit AI integrations")
         return ChatOpenAI(
             model="gpt-5-mini",
             openai_api_key=OPENAI_API_KEY,
             openai_api_base=OPENAI_BASE_URL,
             max_completion_tokens=8192,
         )
+    logger.info("Using Gemini gemini-2.5-flash (fallback)")
     from langchain_google_genai import ChatGoogleGenerativeAI
     return ChatGoogleGenerativeAI(
         model="gemini-2.5-flash",

@@ -51,11 +51,13 @@ function startPythonBackend() {
     return;
   }
 
-  let uvicornBin = findUvicorn();
+  // Always install deps so new requirements.txt entries are picked up on every deploy
+  installPythonDeps(backendDir);
 
-  if (uvicornBin === "uvicorn" || !fs.existsSync(uvicornBin)) {
-    installPythonDeps(backendDir);
-    uvicornBin = findUvicorn();
+  let uvicornBin = findUvicorn();
+  if (!uvicornBin || uvicornBin === "uvicorn") {
+    logger.error("uvicorn not found after pip install — aborting Python backend start");
+    return;
   }
 
   logger.info({ backendDir, uvicornBin }, "Starting Python backend");
