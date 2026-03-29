@@ -17,8 +17,6 @@ import {
   RotateCcw,
   MessageSquare,
   Trash2,
-  Clock,
-  ChevronRight,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useLang } from "@/contexts/lang-context";
@@ -218,89 +216,70 @@ export default function Home() {
                 </button>
               </div>
 
-              {/* ── Chat History ── */}
-              <AnimatePresence>
-                {sidebarOpen && sessions.length > 0 && (
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 0.2 }}
-                    className="px-4 pb-1 shrink-0"
-                  >
-                    <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 mb-1">
-                      {t.home.chatHistory ?? "Sohbet Geçmişi"}
-                    </p>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-
-              <AnimatePresence>
-                {sidebarOpen && sessions.length > 0 && (
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 0.2 }}
-                    className="px-2 overflow-y-auto"
-                    style={{ maxHeight: "220px" }}
-                  >
-                    {sessions.map(session => (
-                      <div
-                        key={session.id}
-                        onClick={() => handleSelectSession(session)}
-                        className={`group flex items-start gap-2 w-full px-2 py-2 rounded-lg cursor-pointer transition-all mb-0.5 ${
-                          session.id === sessionId
-                            ? "bg-primary/8 border border-primary/20"
-                            : "hover:bg-muted"
-                        }`}
-                      >
-                        <MessageSquare className="w-3.5 h-3.5 shrink-0 mt-0.5 text-muted-foreground/60" />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs font-medium text-foreground truncate leading-tight">
-                            {session.title}
-                          </p>
-                          {session.documentName && (
-                            <p className="text-[10px] text-muted-foreground/70 truncate mt-0.5">
-                              {session.documentName}
-                            </p>
-                          )}
-                          <p className="text-[10px] text-muted-foreground/50 mt-0.5">
-                            {relativeTime(session.updatedAt)}
-                          </p>
-                        </div>
-                        <button
-                          onClick={e => handleDeleteSession(e, session.id)}
-                          className="shrink-0 opacity-0 group-hover:opacity-100 p-0.5 rounded text-muted-foreground hover:text-red-500 transition-all"
-                          title="Sil"
+              {/* ── Single scrollable area (history + docs) ── */}
+              {sidebarOpen ? (
+                <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-4">
+                  {/* Sessions */}
+                  {sessions.length > 0 && (
+                    <div className="mb-2">
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 mb-1 px-1">
+                        {t.home.chatHistory ?? "Sohbet Geçmişi"}
+                      </p>
+                      {sessions.map(session => (
+                        <div
+                          key={session.id}
+                          onClick={() => handleSelectSession(session)}
+                          className={`group flex items-start gap-2 w-full px-2 py-2 rounded-lg cursor-pointer transition-all mb-0.5 ${
+                            session.id === sessionId
+                              ? "bg-primary/10 border border-primary/20"
+                              : "hover:bg-muted"
+                          }`}
                         >
-                          <Trash2 className="w-3 h-3" />
-                        </button>
-                      </div>
-                    ))}
-                  </motion.div>
-                )}
-              </AnimatePresence>
+                          <MessageSquare className="w-3.5 h-3.5 shrink-0 mt-0.5 text-muted-foreground/60" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-medium text-foreground truncate leading-tight">
+                              {session.title}
+                            </p>
+                            {session.documentName && (
+                              <p className="text-[10px] text-muted-foreground/70 truncate mt-0.5">
+                                {session.documentName}
+                              </p>
+                            )}
+                            <p className="text-[10px] text-muted-foreground/50 mt-0.5">
+                              {relativeTime(session.updatedAt)}
+                            </p>
+                          </div>
+                          <button
+                            onClick={e => handleDeleteSession(e, session.id)}
+                            className="shrink-0 opacity-0 group-hover:opacity-100 p-0.5 rounded text-muted-foreground hover:text-red-500 transition-all"
+                            title="Sil"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ))}
+                      <div className="mt-3 mb-3 border-t border-border/50" />
+                    </div>
+                  )}
 
-              {/* ── Divider ── */}
-              {sidebarOpen && sessions.length > 0 && (
-                <div className="mx-4 my-2 border-t border-border/50 shrink-0" />
+                  {/* Documents (flat, no internal scroll) */}
+                  <DocPanel
+                    selectedDocId={selectedDocId}
+                    onDocSelect={handleDocChange}
+                    collapsed={false}
+                    flat
+                  />
+                </div>
+              ) : (
+                /* Collapsed icon strip */
+                <div className="flex-1 min-h-0 overflow-y-auto py-5">
+                  <DocPanel
+                    selectedDocId={selectedDocId}
+                    onDocSelect={handleDocChange}
+                    collapsed
+                  />
+                </div>
               )}
-
-              {/* ── DocPanel ── */}
-              <div
-                className="flex-1 min-h-0 overflow-hidden"
-                style={{
-                  padding: sidebarOpen ? "4px 16px 16px" : "20px 0 16px",
-                  transition: "padding 0.28s cubic-bezier(0.4,0,0.2,1)",
-                }}
-              >
-                <DocPanel
-                  selectedDocId={selectedDocId}
-                  onDocSelect={handleDocChange}
-                  collapsed={!sidebarOpen}
-                />
-              </div>
             </div>
           </motion.div>
 

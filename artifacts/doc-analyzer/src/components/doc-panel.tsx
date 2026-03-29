@@ -17,9 +17,10 @@ interface DocPanelProps {
   selectedDocId: string | "all";
   onDocSelect: (id: string | "all") => void;
   collapsed: boolean;
+  flat?: boolean;
 }
 
-export function DocPanel({ selectedDocId, onDocSelect, collapsed }: DocPanelProps) {
+export function DocPanel({ selectedDocId, onDocSelect, collapsed, flat }: DocPanelProps) {
   const { data: documents, isLoading } = useListDocuments();
   const { mutate: deleteDoc } = useDeleteDocument();
   const queryClient = useQueryClient();
@@ -106,8 +107,8 @@ export function DocPanel({ selectedDocId, onDocSelect, collapsed }: DocPanelProp
   }
 
   /* ── Expanded mode ─────────────────────────────────────────────── */
-  return (
-    <aside className="flex flex-col h-full overflow-hidden">
+  const expandedContent = (
+    <>
       {/* Section header */}
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
@@ -143,7 +144,7 @@ export function DocPanel({ selectedDocId, onDocSelect, collapsed }: DocPanelProp
       </button>
 
       {/* Document thumbnail cards */}
-      <div className="flex-1 min-h-0 overflow-y-auto space-y-2 pr-0.5">
+      <div className={flat ? "space-y-2 pr-0.5" : "flex-1 min-h-0 overflow-y-auto space-y-2 pr-0.5"}>
         {isLoading && (
           <div className="flex items-center justify-center py-8">
             <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
@@ -244,6 +245,9 @@ export function DocPanel({ selectedDocId, onDocSelect, collapsed }: DocPanelProp
           </div>
         )}
       </div>
-    </aside>
+    </>
   );
+
+  if (flat) return expandedContent;
+  return <aside className="flex flex-col h-full overflow-hidden">{expandedContent}</aside>;
 }
