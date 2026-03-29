@@ -1,7 +1,8 @@
 import os
+import json
 import secrets
 from fastapi import APIRouter, HTTPException, Depends, status
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, HTMLResponse
 from pydantic import BaseModel, EmailStr
 from typing import Optional
 
@@ -132,12 +133,47 @@ def google_login():
     return RedirectResponse(url)
 
 
+def _popup_html(payload: dict) -> str:
+    """Return an HTML page that sends payload to opener via postMessage then closes."""
+    data = json.dumps(payload)
+    return f"""<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title>Giriş yapılıyor...</title></head>
+<body>
+<script>
+  try {{
+    if (window.opener) {{
+      window.opener.postMessage({data}, '*');
+    }}
+  }} catch(e) {{}}
+  window.close();
+</script>
+<p style="font-family:sans-serif;text-align:center;margin-top:40px;color:#555">
+  Giriş yapılıyor, lütfen bekleyin…
+</p>
+</body></html>"""
+
+
 @router.get("/google/callback")
-async def google_callback(code: str, state: Optional[str] = None):
+async def google_callback(
+    code: Optional[str] = None,
+    error: Optional[str] = None,
+    state: Optional[str] = None,
+):
+    if error:
+        html = _popup_html({"type": "google-auth-error",
+                            "error": f"Google girişi iptal edildi: {error}"})
+        return HTMLResponse(html)
+
+    if not code:
+        html = _popup_html({"type": "google-auth-error", "error": "Yetkilendirme kodu alınamadı."})
+        return HTMLResponse(html)
+
     try:
         userinfo = await exchange_google_code(code)
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Google doğrulama başarısız: {str(e)}")
+        html = _popup_html({"type": "google-auth-error",
+                            "error": f"Google doğrulama başarısız: {str(e)}"})
+        return HTMLResponse(html)
 
     google_id = userinfo.get("sub")
     email = userinfo.get("email")
@@ -145,12 +181,19 @@ async def google_callback(code: str, state: Optional[str] = None):
     avatar_url = userinfo.get("picture")
 
     if not email or not google_id:
-        raise HTTPException(status_code=400, detail="Google hesabından e-posta alınamadı.")
+        html = _popup_html({"type": "google-auth-error",
+                            "error": "Google hesabından e-posta alınamadı."})
+        return HTMLResponse(html)
 
     user = upsert_google_user(google_id=google_id, email=email,
                               full_name=full_name, avatar_url=avatar_url)
     token = create_access_token(str(user["id"]), user["email"])
 
-    # Redirect to frontend with token
-    frontend = FRONTEND_URL or "/"
-    return RedirectResponse(f"{frontend}?token={token}")
+    user_payload = {
+        "id": str(user["id"]),
+        "email": user["email"],
+        "full_name": user["full_name"],
+        "avatar_url": user["avatar_url"],
+    }
+    html = _popup_html({"type": "google-auth-success", "token": token, "user": user_payload})
+    return HTMLResponse(html)

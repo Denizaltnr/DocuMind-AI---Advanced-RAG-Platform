@@ -1,10 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { Eye, EyeOff, Mail, Lock, User, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/auth-context";
-
-const GOOGLE_CLIENT_ID = "630913058373-bskba9v5t7469gh9fpcjuvnda31108p3.apps.googleusercontent.com";
 
 function getBaseUrl() {
   return import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
@@ -22,42 +20,46 @@ export default function Signup() {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const initGoogle = () => {
-      if (!window.google) return;
-      window.google.accounts.id.initialize({
-        client_id: GOOGLE_CLIENT_ID,
-        callback: handleGoogleCredential,
-        auto_select: false,
-        cancel_on_tap_outside: true,
-      });
-    };
-    if (window.google) {
-      initGoogle();
-    } else {
-      const script = document.querySelector('script[src*="accounts.google.com/gsi"]');
-      if (script) script.addEventListener("load", initGoogle);
-    }
-  }, []);
-
-  const handleGoogleCredential = async (response: { credential: string }) => {
+  const handleGoogle = () => {
     setGoogleLoading(true);
     setError(null);
-    try {
-      const res = await fetch(`${getBaseUrl()}/api/auth/google/token`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ credential: response.credential }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.detail ?? "Google girişi başarısız.");
-      login(data.access_token, data.user);
-      navigate("/");
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
+
+    const w = 500, h = 600;
+    const left = window.screenX + (window.outerWidth - w) / 2;
+    const top = window.screenY + (window.outerHeight - h) / 2;
+    const popup = window.open(
+      `${getBaseUrl()}/api/auth/google`,
+      "google-oauth",
+      `width=${w},height=${h},left=${left},top=${top},toolbar=no,menubar=no`
+    );
+
+    if (!popup) {
+      setError("Popup penceresi açılamadı. Tarayıcı popup engelleyicisini kapatın.");
       setGoogleLoading(false);
+      return;
     }
+
+    const onMessage = (event: MessageEvent) => {
+      if (event.data?.type === "google-auth-success") {
+        window.removeEventListener("message", onMessage);
+        setGoogleLoading(false);
+        login(event.data.token, event.data.user);
+        navigate("/");
+      } else if (event.data?.type === "google-auth-error") {
+        window.removeEventListener("message", onMessage);
+        setGoogleLoading(false);
+        setError(event.data.error ?? "Google girişi başarısız.");
+      }
+    };
+    window.addEventListener("message", onMessage);
+
+    const timer = setInterval(() => {
+      if (popup.closed) {
+        clearInterval(timer);
+        window.removeEventListener("message", onMessage);
+        setGoogleLoading(false);
+      }
+    }, 500);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -83,18 +85,6 @@ export default function Signup() {
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const handleGoogle = () => {
-    if (!window.google) {
-      setError("Google Sign-In yüklenemedi. Sayfayı yenileyip tekrar dene.");
-      return;
-    }
-    window.google.accounts.id.prompt((notification: any) => {
-      if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-        window.google.accounts.id.prompt();
-      }
-    });
   };
 
   return (
